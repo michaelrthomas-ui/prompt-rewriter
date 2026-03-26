@@ -1,65 +1,555 @@
+"use client";
+
+import { useState, useRef } from "react";
 import Image from "next/image";
 
+type Model = "grok" | "wan";
+
+interface AnsweredQuestion {
+  question: string;
+  answer: "yes" | "no";
+}
+
+interface PendingQuestion {
+  question: string;
+  answer: "yes" | "no" | null;
+}
+
 export default function Home() {
+  const [model, setModel] = useState<Model>("grok");
+  const [prompt, setPrompt] = useState("");
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+  const [imageName, setImageName] = useState("");
+  const [answeredQuestions, setAnsweredQuestions] = useState<AnsweredQuestion[]>([]);
+  const [pendingQuestions, setPendingQuestions] = useState<PendingQuestion[]>([]);
+  const [rewritten, setRewritten] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
+  const [error, setError] = useState("");
+  const [step, setStep] = useState<"input" | "questions" | "result">("input");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function resizeImage(file: File): Promise<string> {
+    return new Promise((resolve) => {
+      const img = document.createElement("img");
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX = 1024;
+        let w = img.width;
+        let h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  function processImage(file: File) {
+    if (!file.type.startsWith("image/")) {
+      setError("Please upload an image file (JPG, PNG, WebP, etc.)");
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      setError("Image must be under 20MB");
+      return;
+    }
+    setImageName(file.name);
+    resizeImage(file).then((dataUrl) => {
+      setImageDataUrl(dataUrl);
+      setError("");
+    });
+  }
+
+  function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) processImage(file);
+  }
+
+  function handleRemoveImage() {
+    setImageDataUrl(null);
+    setImageName("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) processImage(file);
+  }
+
+  async function handleAnalyze() {
+    if (!prompt.trim()) return;
+    setLoading(true);
+    setLoadingMessage(imageDataUrl ? "Analyzing your prompt and image..." : "Analyzing your prompt...");
+    setError("");
+    setPendingQuestions([]);
+    setAnsweredQuestions([]);
+    setRewritten("");
+
+    try {
+      const res = await fetch("/api/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          action: "analyze",
+          prompt,
+          image: imageDataUrl || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to analyze prompt");
+      }
+
+      const data = await res.json();
+      setPendingQuestions(
+        data.questions.map((q: string) => ({ question: q, answer: null }))
+      );
+      setStep("questions");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+      setLoadingMessage("");
+    }
+  }
+
+  function handleAnswer(index: number, answer: "yes" | "no") {
+    setPendingQuestions((prev) =>
+      prev.map((q, i) => (i === index ? { ...q, answer } : q))
+    );
+  }
+
+  const allAnswered = pendingQuestions.length > 0 && pendingQuestions.every((q) => q.answer !== null);
+
+  async function handleGenerate() {
+    setLoading(true);
+    setLoadingMessage("Crafting your optimized prompt...");
+    setError("");
+
+    const allQuestions = [
+      ...answeredQuestions,
+      ...pendingQuestions.map((q) => ({
+        question: q.question,
+        answer: q.answer as "yes" | "no",
+      })),
+    ];
+
+    try {
+      const res = await fetch("/api/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          action: "generate",
+          prompt,
+          questions: allQuestions,
+          image: imageDataUrl || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to generate prompt");
+      }
+
+      const data = await res.json();
+      setRewritten(data.rewritten);
+      setAnsweredQuestions(allQuestions);
+      setStep("result");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+      setLoadingMessage("");
+    }
+  }
+
+  async function handleDigDeeper() {
+    setLoading(true);
+    setLoadingMessage("Thinking of more questions...");
+    setError("");
+
+    const allQuestions = [
+      ...answeredQuestions,
+      ...pendingQuestions.map((q) => ({
+        question: q.question,
+        answer: q.answer as "yes" | "no",
+      })),
+    ];
+
+    try {
+      const res = await fetch("/api/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          action: "analyze",
+          prompt,
+          questions: allQuestions,
+          image: imageDataUrl || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to get more questions");
+      }
+
+      const data = await res.json();
+      setAnsweredQuestions(allQuestions);
+      setPendingQuestions(
+        data.questions.map((q: string) => ({ question: q, answer: null }))
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+      setLoadingMessage("");
+    }
+  }
+
+  function handleStartOver() {
+    setPrompt("");
+    setImageDataUrl(null);
+    setImageName("");
+    setAnsweredQuestions([]);
+    setPendingQuestions([]);
+    setRewritten("");
+    setError("");
+    setStep("input");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleCopy() {
+    navigator.clipboard.writeText(rewritten);
+  }
+
+  // Shared image thumbnail component
+  const ImageThumbnail = () =>
+    imageDataUrl ? (
+      <div className="mb-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+        <span className="text-xs text-slate-500 uppercase tracking-wide">Reference image</span>
+        <div className="mt-2 relative w-full max-w-[200px]">
+          <Image
+            src={imageDataUrl}
+            alt="Reference"
+            width={200}
+            height={200}
+            className="rounded-lg object-cover"
+            unoptimized
+          />
+        </div>
+      </div>
+    ) : null;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="flex flex-col items-center min-h-screen px-4 py-12">
+      <div className="w-full max-w-2xl">
+        <h1 className="text-3xl font-bold text-center mb-2">
+          AI Video Prompt Rewriter
+        </h1>
+        <p className="text-center text-slate-400 mb-8">
+          We&apos;ll figure out exactly what you want, then craft the perfect prompt
+        </p>
+
+        {/* Model selector */}
+        <div className="flex gap-3 mb-6 justify-center">
+          <button
+            onClick={() => { if (step === "input") setModel("grok"); }}
+            className={`px-6 py-3 rounded-lg font-semibold text-lg transition-all cursor-pointer ${
+              model === "grok"
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
+                : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+            } ${step !== "input" ? "opacity-60 cursor-default" : ""}`}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            Grok
+          </button>
+          <button
+            onClick={() => { if (step === "input") setModel("wan"); }}
+            className={`px-6 py-3 rounded-lg font-semibold text-lg transition-all cursor-pointer ${
+              model === "wan"
+                ? "bg-purple-600 text-white shadow-lg shadow-purple-500/30"
+                : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+            } ${step !== "input" ? "opacity-60 cursor-default" : ""}`}
           >
-            Documentation
-          </a>
+            Wan
+          </button>
         </div>
-      </main>
+
+        {/* Step 1: Prompt input */}
+        {step === "input" && (
+          <>
+            {/* Image upload */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Reference Image <span className="text-slate-500">(optional)</span>
+              </label>
+              {!imageDataUrl ? (
+                <div
+                  onDrop={handleDrop}
+                  onDragOver={(e) => e.preventDefault()}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full rounded-lg bg-slate-800 border-2 border-dashed border-slate-600 px-4 py-8 text-center cursor-pointer hover:border-indigo-500 hover:bg-slate-800/80 transition-all"
+                >
+                  <p className="text-slate-400">
+                    Drop an image here or click to upload
+                  </p>
+                  <p className="text-slate-500 text-sm mt-1">
+                    Upload the image you want to animate into a video
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-start gap-4 p-3 rounded-lg bg-slate-800 border border-slate-700">
+                  <Image
+                    src={imageDataUrl}
+                    alt="Uploaded"
+                    width={120}
+                    height={120}
+                    className="rounded-lg object-cover shrink-0"
+                    unoptimized
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm truncate">{imageName}</p>
+                    <p className="text-slate-500 text-xs mt-1">
+                      The AI will analyze this image alongside your prompt
+                    </p>
+                    <button
+                      onClick={handleRemoveImage}
+                      className="mt-2 text-sm text-red-400 hover:text-red-300 cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Prompt input */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Describe what you want to create
+              </label>
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder={
+                  imageDataUrl
+                    ? "Describe how you want this image to come alive as a video..."
+                    : model === "grok"
+                    ? "e.g. A dog running through a field of flowers..."
+                    : "e.g. A woman walking down a city street at night..."
+                }
+                rows={4}
+                className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y"
+              />
+            </div>
+
+            <button
+              onClick={handleAnalyze}
+              disabled={loading || !prompt.trim()}
+              className="w-full py-3 rounded-lg font-semibold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+            >
+              {loading ? loadingMessage : "Let\u2019s Figure Out What You Want"}
+            </button>
+          </>
+        )}
+
+        {/* Step 2: Questions */}
+        {step === "questions" && (
+          <>
+            {/* Show image if uploaded */}
+            <ImageThumbnail />
+
+            {/* Show original prompt */}
+            <div className="mb-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+              <span className="text-xs text-slate-500 uppercase tracking-wide">Your idea</span>
+              <p className="text-slate-300 mt-1">{prompt}</p>
+            </div>
+
+            {/* Show previously answered questions */}
+            {answeredQuestions.length > 0 && (
+              <div className="mb-4 space-y-2">
+                <span className="text-xs text-slate-500 uppercase tracking-wide">Previous answers</span>
+                {answeredQuestions.map((q, i) => (
+                  <div key={`answered-${i}`} className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/30">
+                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                      q.answer === "yes" ? "bg-emerald-600/30 text-emerald-400" : "bg-red-600/30 text-red-400"
+                    }`}>
+                      {q.answer.toUpperCase()}
+                    </span>
+                    <span className="text-slate-400 text-sm">{q.question}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Current questions */}
+            <div className="space-y-3 mb-6">
+              <span className="text-xs text-slate-500 uppercase tracking-wide">
+                Help us understand what you want
+              </span>
+              {pendingQuestions.map((q, i) => (
+                <div
+                  key={`pending-${i}`}
+                  className="p-4 rounded-lg bg-slate-800 border border-slate-700"
+                >
+                  <p className="text-white mb-3">{q.question}</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleAnswer(i, "yes")}
+                      className={`px-5 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
+                        q.answer === "yes"
+                          ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/30"
+                          : "bg-slate-700 text-slate-400 hover:bg-slate-600"
+                      }`}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      onClick={() => handleAnswer(i, "no")}
+                      className={`px-5 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
+                        q.answer === "no"
+                          ? "bg-red-600 text-white shadow-lg shadow-red-500/30"
+                          : "bg-slate-700 text-slate-400 hover:bg-slate-600"
+                      }`}
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Action buttons */}
+            {allAnswered && !loading && (
+              <div className="flex gap-3">
+                <button
+                  onClick={handleGenerate}
+                  className="flex-1 py-3 rounded-lg font-semibold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 transition-all cursor-pointer"
+                >
+                  Generate Prompt
+                </button>
+                <button
+                  onClick={handleDigDeeper}
+                  className="flex-1 py-3 rounded-lg font-semibold text-lg bg-slate-700 text-white hover:bg-slate-600 transition-all cursor-pointer"
+                >
+                  Dig Deeper
+                </button>
+              </div>
+            )}
+
+            {loading && (
+              <div className="text-center py-4 text-slate-400">
+                {loadingMessage}
+              </div>
+            )}
+
+            <button
+              onClick={handleStartOver}
+              className="w-full mt-3 py-2 text-sm text-slate-500 hover:text-slate-300 cursor-pointer transition-colors"
+            >
+              Start Over
+            </button>
+          </>
+        )}
+
+        {/* Step 3: Result */}
+        {step === "result" && (
+          <>
+            {/* Show image if uploaded */}
+            <ImageThumbnail />
+
+            {/* Show original prompt */}
+            <div className="mb-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+              <span className="text-xs text-slate-500 uppercase tracking-wide">Your idea</span>
+              <p className="text-slate-300 mt-1">{prompt}</p>
+            </div>
+
+            {/* Show Q&A summary */}
+            {answeredQuestions.length > 0 && (
+              <div className="mb-4 space-y-2">
+                <span className="text-xs text-slate-500 uppercase tracking-wide">
+                  What we learned ({answeredQuestions.length} questions answered)
+                </span>
+                {answeredQuestions.map((q, i) => (
+                  <div key={`result-q-${i}`} className="flex items-center gap-3 p-2 rounded-lg bg-slate-800/30 border border-slate-700/30">
+                    <span className={`px-2 py-0.5 rounded text-xs font-bold shrink-0 ${
+                      q.answer === "yes" ? "bg-emerald-600/30 text-emerald-400" : "bg-red-600/30 text-red-400"
+                    }`}>
+                      {q.answer.toUpperCase()}
+                    </span>
+                    <span className="text-slate-400 text-sm">{q.question}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Optimized prompt */}
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-emerald-400">
+                  Your Optimized Prompt
+                </label>
+                <button
+                  onClick={handleCopy}
+                  className="text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                >
+                  Copy to clipboard
+                </button>
+              </div>
+              <div className="rounded-lg bg-slate-800 border border-emerald-700/50 px-4 py-3 text-white whitespace-pre-wrap">
+                {rewritten}
+              </div>
+            </div>
+
+            {/* Post-result actions */}
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => {
+                  setRewritten("");
+                  setPendingQuestions([]);
+                  setStep("questions");
+                  handleDigDeeper();
+                }}
+                disabled={loading}
+                className="flex-1 py-3 rounded-lg font-semibold bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-50 transition-all cursor-pointer"
+              >
+                {loading ? loadingMessage : "Refine Further"}
+              </button>
+              <button
+                onClick={handleStartOver}
+                className="flex-1 py-3 rounded-lg font-semibold bg-slate-800 text-slate-400 hover:bg-slate-700 transition-all cursor-pointer"
+              >
+                New Prompt
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="mt-4 p-4 rounded-lg bg-red-900/50 border border-red-700 text-red-200">
+            {error}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

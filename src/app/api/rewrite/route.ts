@@ -334,7 +334,10 @@ A user wants to create an image-to-video prompt for ${modelName}. Their initial 
 
 Now write the BEST possible ${modelName} image-to-video prompt based on everything you know about what they want. Apply all your expertise about what works well with ${modelName}. Make it detailed, specific, and optimized for the best possible output. Fix any issues that would confuse ${modelName}.
 
-STRICT RULES FOR THE OUTPUT PROMPT:
+THE #1 RULE — PRESERVE THE USER'S CORE IDEA:
+The user's main concept/action MUST appear in the generated prompt. NEVER remove, water down, or replace the user's core idea with something safer or simpler. If they want "a fish swallows a man whole," the prompt MUST describe a fish swallowing a man whole. If they want something surreal, fantastical, or physically impossible, INCLUDE IT — your job is to express their idea in the best possible way for ${modelName}, NOT to decide their idea is too hard and replace it with something generic. Optimize HOW it's described, never WHAT is described.
+
+FORMATTING RULES FOR THE OUTPUT PROMPT:
 - Each prompt must be 50-150 words. Never exceed 200 words.
 - Each prompt must contain only ONE primary action. One subject + one main action + one camera move.
 - Front-load the key subject and action in the first 20-30 words.

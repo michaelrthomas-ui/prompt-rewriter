@@ -331,10 +331,18 @@ ${questions && questions.length > 0 ? "IMPORTANT: Do NOT repeat any questions al
 
 CRITICAL QUESTION FORMAT RULES:
 1. Every question MUST be answerable with "Yes", "No", or a short typed answer.
-2. NEVER use the word "or" to present two options in a question. BANNED patterns: "Should X, or should Y?", "Should X or Y?", "Do you want X or Y?", "Should it be X or should it Y?"
-3. Instead, pick ONE option and ask about it: "Should the motion be fast/energetic?" — the user answers Yes, No, or types their own preference.
+2. ABSOLUTELY NEVER use the word "or" anywhere in a question to present alternatives. This is the MOST IMPORTANT rule. BANNED examples:
+   - "Do you want X or Y?" ❌
+   - "Should X, or should Y?" ❌
+   - "Do you want X or something more Y?" ❌
+   - "Should it be X or more Y?" ❌
+   - "Do you want X (detail) or Y?" ❌
+3. Instead, pick ONE specific option and ask a yes/no question about it. Examples:
+   - "Should the motion be subtle and realistic?" ✅
+   - "Do you want dramatic, intense motion?" ✅
+   - "Should the water have gentle lapping waves?" ✅
 4. Keep questions concise and specific.
-5. Before returning, re-read EVERY question and reject any that contain " or " presenting two choices. Rephrase those as single-option yes/no questions.
+5. FINAL CHECK: Before returning, scan every question for the word " or ". If ANY question contains " or " presenting a choice between two things, you MUST rewrite it as a single-option yes/no question. Zero tolerance.
 
 READINESS ASSESSMENT: Based on everything so far, decide if you have ENOUGH information to write an excellent ${modelName} prompt.
 ${imageOnlyMode ? `For image-only mode, you need MORE info before you're ready — since there's no user prompt to start from, you need at MINIMUM: (1) a clear creative direction/vibe, (2) a specific main action or event, (3) some sense of mood/style. Do NOT set readyToGenerate to true until you've asked at least 6-8 questions and have a clear picture. It's better to ask too many questions than to generate a vague prompt.` : `You need at minimum: a clear subject/scene, motion intent, and camera/style direction.`}
@@ -386,10 +394,22 @@ Example: {"questions":["Should the camera slowly push in toward the subject?","D
         }
 
         // Pattern 2: "Do you want X or Y?" where X and Y are clearly alternatives
-        // Detected by ", or " (comma before or = deliberate alternative)
-        const commaOr = q.match(/^(.{20,}),\s+or\s+(.+?\?)\s*$/i);
+        // Detected by ", or " or ") or " (comma/closing paren before or = deliberate alternative)
+        const commaOr = q.match(/^(.{20,})[,)]\s+or\s+(.+?\?)\s*$/i);
         if (commaOr) {
           let firstPart = commaOr[1].trim();
+          // Remove trailing open paren content if we cut at ")"
+          firstPart = firstPart.replace(/\s*\([^)]*$/, "");
+          if (!firstPart.endsWith("?")) firstPart += "?";
+          return firstPart;
+        }
+
+        // Pattern 3: "X or something more Y?" — "or something" is always a choice
+        const orSomething = q.match(/^(.{20,})\s+or\s+something\s+.+\?$/i);
+        if (orSomething) {
+          let firstPart = orSomething[1].trim();
+          // Clean up trailing parenthetical fragment
+          firstPart = firstPart.replace(/\s*\([^)]*$/, "").replace(/\s*\([^)]*\)\s*$/, "");
           if (!firstPart.endsWith("?")) firstPart += "?";
           return firstPart;
         }

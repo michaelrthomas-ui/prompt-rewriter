@@ -249,9 +249,10 @@ ${questions && questions.length > 0 ? "IMPORTANT: Do NOT repeat any questions al
 
 CRITICAL QUESTION FORMAT RULES:
 1. Every question MUST be answerable with "Yes", "No", or a short typed answer.
-2. NEVER ask "A or B?" style questions (e.g. "Should it be fast or slow?"). Instead, pick one option and ask about it: "Should the motion be fast/energetic?" (user answers Yes, No, or types something else).
-3. NEVER ask "Should X, or should Y?" — these don't work with Yes/No buttons.
+2. NEVER use the word "or" to present two options in a question. BANNED patterns: "Should X, or should Y?", "Should X or Y?", "Do you want X or Y?", "Should it be X or should it Y?"
+3. Instead, pick ONE option and ask about it: "Should the motion be fast/energetic?" — the user answers Yes, No, or types their own preference.
 4. Keep questions concise and specific.
+5. Before returning, re-read EVERY question and reject any that contain " or " presenting two choices. Rephrase those as single-option yes/no questions.
 
 READINESS ASSESSMENT: Based on the original prompt and all answers so far, decide if you have ENOUGH information to write an excellent ${modelName} prompt. You need at minimum: a clear subject/scene, motion intent, and camera/style direction. If you have all of these, set "readyToGenerate" to true. If critical details are still missing, set it to false.
 

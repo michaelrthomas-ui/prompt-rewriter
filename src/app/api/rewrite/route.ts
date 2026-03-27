@@ -291,13 +291,18 @@ Example: {"questions":["Should the camera slowly push in toward the subject?","D
 
       // Post-process: fix any "A or B?" questions that slipped through
       parsed.questions = parsed.questions.map((q: string) => {
-        // Match patterns like "Should X, or Y?" or "Should X or Y?"
-        // Take only the first part before ", or" / " or " (when it presents two choices)
-        const orMatch = q.match(/^(.+?),?\s+or\s+(?:should\s+)?(.+?\?)\s*$/i);
-        if (orMatch) {
-          // Take the first option and make it a yes/no question
-          let firstPart = orMatch[1].trim();
-          // Ensure it ends with a question mark
+        // Split on ", or " or " or should " to find A-or-B patterns
+        // Use greedy match (.+) so we capture as much as possible before the last "or" split
+        const commaOrMatch = q.match(/^(.+),\s+or\s+(.+?\?)\s*$/i);
+        if (commaOrMatch) {
+          let firstPart = commaOrMatch[1].trim();
+          if (!firstPart.endsWith("?")) firstPart += "?";
+          return firstPart;
+        }
+        // "Should X or Y?" but NOT "Should X or Y be Z?" (only split when "or" introduces a separate clause)
+        const orShouldMatch = q.match(/^(.+)\s+or\s+(?:should|do|does|will|would|can|could)\s+(.+?\?)\s*$/i);
+        if (orShouldMatch) {
+          let firstPart = orShouldMatch[1].trim();
           if (!firstPart.endsWith("?")) firstPart += "?";
           return firstPart;
         }

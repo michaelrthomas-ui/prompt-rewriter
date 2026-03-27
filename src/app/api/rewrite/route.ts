@@ -223,7 +223,7 @@ function buildContent(textPrompt: string, imageDataUrl?: string): string | Messa
 
 export async function POST(request: NextRequest) {
   try {
-    const { model, action, prompt, questions, image } = await request.json();
+    const { model, action, prompt, questions, image, duration } = await request.json();
 
     if (!prompt && !image) {
       return Response.json({ error: "Please provide a prompt or upload an image" }, { status: 400 });
@@ -231,6 +231,8 @@ export async function POST(request: NextRequest) {
     if (model !== "grok" && model !== "wan") {
       return Response.json({ error: "Model must be 'grok' or 'wan'" }, { status: 400 });
     }
+
+    const clipDuration = model === "grok" ? 8 : (duration === 10 ? 10 : 5);
 
     const modelName = model === "grok" ? "Grok" : "Wan";
     const expertise = model === "grok" ? GROK_EXPERTISE : WAN_EXPERTISE;
@@ -412,22 +414,25 @@ ${promptIntro}
 
 Now write the BEST possible ${modelName} image-to-video prompt based on everything you know about what they want. Apply all your expertise about what works well with ${modelName}. Make it detailed, specific, and optimized for the best possible output. Fix any issues that would confuse ${modelName}.
 
+DURATION: The generated video will be ${clipDuration} seconds long. Design the prompt for EXACTLY ${clipDuration} seconds of action — don't describe more action than can realistically happen in ${clipDuration} seconds. ${clipDuration <= 5 ? "With only 5 seconds, keep it to ONE simple motion or change." : clipDuration <= 8 ? "With 8 seconds, you can fit one clear action with some buildup." : "With 10 seconds, you have room for one primary action with a setup and payoff."}
+
 THE #1 RULE — PRESERVE THE USER'S CORE IDEA:
 The user's main concept/action MUST appear in the generated prompt. NEVER remove, water down, or replace the user's core idea with something safer or simpler. If they want "a fish swallows a man whole," the prompt MUST describe a fish swallowing a man whole. If they want something surreal, fantastical, or physically impossible, INCLUDE IT — your job is to express their idea in the best possible way for ${modelName}, NOT to decide their idea is too hard and replace it with something generic. Optimize HOW it's described, never WHAT is described.
 
 FORMATTING RULES FOR THE OUTPUT PROMPT:
-- Each prompt must be 50-150 words. Never exceed 200 words.
-- Each prompt must contain only ONE primary action. One subject + one main action + one camera move.
+- Write ONE single prompt. Do NOT split into multiple clips unless the user specifically asked for it.
+- The prompt must be 50-150 words. Never exceed 200 words.
+- The prompt must contain only ONE primary action that fits in ${clipDuration} seconds.
 - Front-load the key subject and action in the first 20-30 words.
 - Include at least 3 of the 5 layers: scene, camera, style/lighting, motion, audio.
 - Use specific action verbs and cinematic language.
 - Use positive descriptions only (never "no X" or "without X").
-- If the user's idea involves multiple steps, actions, or a sequence that would take more than ~10 seconds, you MUST split it into multiple clip prompts labeled "Clip 1:", "Clip 2:", "Clip 3:", etc. Each clip should describe one action that works in a single 10-second generation. Note that clips can be chained using Grok's "Extend from Frame" feature.
-- If it's a simple single-action idea, return just one prompt with no label.
+
+COMPLEXITY CHECK: If the user's idea involves WAY too much action for a single ${clipDuration}-second clip, add a note at the very end on a new line starting with "⚠️ TIP:" suggesting the user could break this into multiple clips for better results, and briefly explain how. But STILL write the single prompt — let the user decide if they want to split it.
 
 ${image ? `CRITICAL: The prompt MUST describe how the uploaded image should ANIMATE into video. Describe motion, camera movement, and changes — NOT dialogue or text overlays. If the user's original prompt contained text they wanted spoken, translate that intent into visual actions (e.g. a person's lips moving naturally, confident body language, hand gestures) that ${modelName} can actually render.` : ""}
 
-Return ONLY the final prompt(s), nothing else. No explanations, no commentary, no quotes around it.`;
+Return ONLY the final prompt, nothing else. No explanations, no commentary, no quotes around it. (Exception: the ⚠️ TIP line if needed.)`;
 
       const rewritten = await callKieAI(buildContent(textPrompt, image));
       return Response.json({ rewritten });

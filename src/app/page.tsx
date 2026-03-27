@@ -30,6 +30,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [step, setStep] = useState<"input" | "questions" | "result">("input");
   const [readyToGenerate, setReadyToGenerate] = useState(false);
+  const [wanDuration, setWanDuration] = useState<5 | 10>(5);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -126,6 +127,7 @@ export default function Home() {
           action: "analyze",
           prompt,
           image: imageDataUrl || undefined,
+          duration: model === "wan" ? wanDuration : 8,
         }),
       });
 
@@ -196,6 +198,7 @@ export default function Home() {
           prompt,
           questions: allQuestions,
           image: imageDataUrl || undefined,
+          duration: model === "wan" ? wanDuration : 8,
         }),
       });
 
@@ -250,6 +253,7 @@ export default function Home() {
           prompt,
           questions: allQuestions,
           image: imageDataUrl || undefined,
+          duration: model === "wan" ? wanDuration : 8,
         }),
       });
 
@@ -345,6 +349,38 @@ export default function Home() {
             Wan
           </button>
         </div>
+
+        {/* Wan duration selector */}
+        {model === "wan" && step === "input" && (
+          <div className="flex gap-2 mb-6 justify-center">
+            <span className="text-slate-400 text-sm self-center mr-2">Duration:</span>
+            <button
+              onClick={() => setWanDuration(5)}
+              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
+                wanDuration === 5
+                  ? "bg-purple-600/80 text-white shadow-lg shadow-purple-500/20"
+                  : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+              }`}
+            >
+              5 seconds
+            </button>
+            <button
+              onClick={() => setWanDuration(10)}
+              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
+                wanDuration === 10
+                  ? "bg-purple-600/80 text-white shadow-lg shadow-purple-500/20"
+                  : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+              }`}
+            >
+              10 seconds
+            </button>
+          </div>
+        )}
+
+        {/* Grok duration info */}
+        {model === "grok" && step === "input" && (
+          <p className="text-center text-slate-500 text-xs mb-6">Grok generates ~8 second clips</p>
+        )}
 
         {/* Step 1: Prompt input */}
         {step === "input" && (

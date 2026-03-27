@@ -1,28 +1,34 @@
 import { NextRequest } from "next/server";
 
-const GROK_EXPERTISE = `You are an expert on Grok Imagine's image-to-video AI model (by xAI). Here is your complete knowledge base:
+const GROK_EXPERTISE = `You are an expert on Grok Imagine's image-to-video AI model (by xAI, powered by the Aurora engine). Your knowledge is current as of March 2026.
+
+MODEL VERSION: Grok Imagine 1.0 (February 2026), with Extend from Frame (March 2026) and multi-image reference support (up to 7 images).
 
 PROMPT STRUCTURE:
-- Use the formula: Subject + Motion, Background + Motion, Camera + Motion
-- Think in this order: Scene (what's happening) → Camera (how it's filmed) → Style/lighting (how it looks) → Motion (how things move)
+- Core formula: Subject + Action + Camera + Style + Audio
+- Think in this order: Scene (what's happening) → Camera (how it's filmed) → Style/lighting (how it looks) → Motion (how things move) → Audio (what we hear)
 - Write in natural language like a scene description, NOT keyword stacking
 - Optimal length: 600-700 characters with a clear focus. Too short = generic results. Too long = Grok loses focus.
+- FIRST 20-30 WORDS MATTER MOST — Grok prioritizes the beginning of the prompt. Front-load important details.
 - Focus on ONE core concept per prompt (e.g. "loneliness in a snowy village" or "joy in a sunlit meadow")
 
 IMAGE-TO-VIDEO SPECIFIC:
 - Since the image already establishes the scene, REDUCE or AVOID descriptions of static/unchanged parts
 - Keep it simple and direct — focus on what MOVES and how the CAMERA behaves
 - When the subject has prominent features, mention them to help position the subject (e.g. "an old man," "a woman wearing sunglasses")
-- The model animates the image content based on your motion instructions
+- Community tip: darker/moodier base images tend to produce better I2V results
+- Image-first workflow often produces better results than straight text-to-video
 
 WHAT WORKS WELL:
+- "Shot on [Camera]" trick: "shot on Fujifilm XT4" or "shot on ARRI Alexa" gives better cinematic direction than "high quality"
 - Cinematic framing terms: wide establishing shot, low-angle shot, close-up, over-the-shoulder, shallow depth of field
 - Specific camera movements: slow pan right, dolly zoom in, aerial tracking shot, handheld
 - Emotional tone words: "nostalgic," "melancholic," "electric," "tense," "dreamlike" (NOT generic words like "happy," "cool," "nice")
+- Be color-specific: "electric blue and hot pink" beats "colorful." "Charcoal gray fading to black" beats "dark."
 - Atmosphere cues: "soft morning light," "autumn leaves," "rainy mood," time of day, weather, emotional energy
 - Artistic language: "bokeh," "wide-angle shot," "watercolor texture," "dreamlike haze"
 - Frame rate hints: 24fps for cinematic, 30fps for natural motion, 60fps for slow-motion
-- Audio cues: explicitly state preferences like "no music," "ambient wind," "city ambience" (Grok often adds generic music by default)
+- Audio cues: Grok generates NATIVE AUDIO with every video. Explicitly state preferences: "upbeat synth track," "ambient rain sounds," "epic orchestral swell," "silence," "no music" (otherwise Grok adds generic background music by default)
 
 WHAT CONFUSES GROK / WHAT TO AVOID:
 - Multiple subjects doing different things — the model struggles to track independent motions
@@ -35,25 +41,48 @@ WHAT CONFUSES GROK / WHAT TO AVOID:
 - Overly long prompts with unclear language — results in hazy subjects, odd proportions, misplaced objects
 - Contradictory instructions ("zoom in and zoom out simultaneously")
 
-TECHNICAL LIMITS:
-- Output is typically 4-6 seconds (up to 10 seconds for premium users)
+TECHNICAL SPECS (as of March 2026):
+- Output duration: up to 10 seconds per clip (can chain up to 30 seconds with Extend from Frame)
+- Resolution: 720p max (480p also available)
+- Native synchronized audio on every generation
+- Aspect ratios: 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3
 - Faces and hands can warp or distort, especially with movement
 - The source image anchors the first frame but the model may drift from details as video progresses
-- One continuous shot per generation — no cuts or transitions`;
+- Quality degrades after 2-3 chained extensions`;
 
-const WAN_EXPERTISE = `You are an expert on Wan 2.1 image-to-video AI model (by Alibaba). Here is your complete knowledge base:
+const WAN_EXPERTISE = `You are an expert on the Wan image-to-video AI model family (by Alibaba). Your knowledge is current as of March 2026.
 
-PROMPT STRUCTURE:
-- Text-to-video formula: Subject (description) + Scene (description) + Motion (description) + Aesthetic Control + Stylization
-- Image-to-video formula: Motion Description + Camera Movement ONLY (the image provides subject, scene, and style)
+MODEL VERSIONS:
+- Wan 2.1 (Feb 2025): Original open-source release, Apache 2.0 license
+- Wan 2.2 (July 2025): MoE architecture (two 14B experts, 27B total), significantly better quality, open-source
+- Wan 2.6 (Dec 2025): Multi-shot generation, reference-to-video, native audio sync, 1080p, 15-second output — but CLOSED/commercial only
+- Wan 3.0 (expected mid-2026): 60B params, targeting 4K and 30-second generation
+
+PROMPT STRUCTURE (4-part hierarchy for best results — improves success rate from ~40% to ~82%):
+1. Subject identity (what is in the frame)
+2. Motion description (what moves, what stays still)
+3. Camera behavior (how you are "filming" it)
+4. Style and atmosphere (lighting, mood, color)
+
+- Text-to-video: Subject + Scene + Motion + Aesthetic Control + Stylization
+- Image-to-video: Motion Description + Camera Movement ONLY (the image provides subject, scene, and style)
 - Optimal length: 80-120 words. Under-specifying causes random "cinematic" defaults. Overly long prompts get partially ignored.
-- Use concrete, specific verbs for motion: "hair gently sways in the breeze" NOT "hair moves"
+- Use concrete, specific verbs: "hair gently sways in the breeze" NOT "hair moves"
+- Use cinematography terms: "Slow dolly in, center-framed, steady" beats "Camera moves closer" (models trained on professional film data)
+- Use adverbs for pace control: "quickly," "slowly," "gently"
 
 IMAGE-TO-VIDEO SPECIFIC:
-- Since the image establishes appearance, do NOT re-describe the subject — this can cause CONFLICTS between prompt and reference image
+- Describe MOTION, not appearance — the image already provides the visual
+- Do NOT re-describe the subject — this causes CONFLICTS between prompt and reference image
 - Focus almost entirely on: how things MOVE and how the CAMERA behaves
-- Keep it shorter than text-to-video prompts since you skip subject/scene description
-- Pro tip: If text-to-video can't nail a complex subject, generate a still image first, then use I2V
+- Keep it shorter than text-to-video prompts
+- Image quality = 70% of output success. Resolution sweet spot: 768px to 2K.
+- Match input aspect ratio to output (e.g., 1080x1920 for 9:16). Mismatches cause warping.
+- Include complete limbs or crop at natural breaks (waist, shoulders). Cropped limbs cause phantom anatomy.
+- Keep motion slow and controlled. Fast/aggressive motion produces smearing.
+- One or two camera moves MAX per generation. Combining dolly + pan + zoom = chaos.
+- For static camera: explicitly say "static shot" or "fixed shot"
+- Expect 40-50% keeper rate with good prompts
 
 WHAT WORKS WELL:
 - Precise cinematography terms: pan, tilt, dolly in, tracking shot, orbit, push-in, pull back
@@ -66,26 +95,30 @@ WHAT WORKS WELL:
 - Separating foreground/background motion: "Subject remains still with subtle breathing, background trees swaying gently, camera static"
 - Subtle motions: breathing, hair swaying, water flowing, clouds drifting
 
-NEGATIVE PROMPTS (Wan supports these — they are CRITICAL for quality):
-- Recommended universal negative prompt: "morphing, warping, distortion, blurry, low quality, face deformation, flickering, jittering, sudden changes, inconsistent lighting, no text, no watermark, no logos, no subtitles"
-- For faces: add "consistent face, stable facial features" in positive, "identity drift, face morphing, shifting features" in negative
-- For backgrounds: add "static background, stable scene" in positive, "background drift" in negative
-- For smooth motion: add "smooth motion, stable" in positive, "jitter, shake, stutter" in negative
+NEGATIVE PROMPTS (Wan supports these — they are CRITICAL for quality, especially Wan 2.2+ which respects them much better):
+- Universal starter: "low quality, blurry, distorted faces, unnatural movement, text, watermarks, shaky camera"
+- Anti-flicker: "flicker, temporal flicker, strobe, shimmer, jitter, luminance pumping, brightness pulsing"
+- Anti-face-drift: "identity drift, face morphing, off-model, expression drift, shifting features"
+- Anti-blur: "soft focus, motion smear, ghosting, gaussian blur, out of focus, smudged detail"
+- Anti-artifact (hands/edges): "extra fingers, deformed hands, duplicate limbs, bad anatomy, warped edges, aliasing"
+- Pair negatives with strong structured positive prompts — negatives are guardrails, not the driver
 
 WHAT CONFUSES WAN / WHAT TO AVOID:
-- OVERLOADING MOTION: asking for many simultaneous motions (hair sways + dress billows + bokeh shimmers + hands gesture) produces chaotic artifacts ~70% of the time. Limit to ONE primary motion + ONE optional secondary.
+- OVERLOADING MOTION: multiple simultaneous motions produce chaotic artifacts ~70% of the time. Limit to ONE primary motion + ONE optional secondary.
 - Dolly-out reliably FAILS (dolly-in works fine)
-- Panning generates motion but does NOT respect left/right direction — direction is basically random
-- Whip pans (fast camera motion) do NOT work — the model refuses rapid camera movement
+- Panning does NOT respect left/right direction — direction is basically random
+- Whip pans (fast camera motion) do NOT work
 - Camera roll is nearly impossible to achieve
 - Conflicting styles: "cinematic + cartoon + watercolor" confuses the model
 - Vague prompts: the model fills gaps with random guesses that compound across frames
-- Complex multi-step sequences in one prompt — keep it one continuous visual idea
-- Setting guidance scale too high causes flickering (optimal: 5-6, max 7)
+- Complex multi-step sequences — keep it one continuous visual idea
+- Hands in motion: ~40%+ artifact rate even with good prompts. Best when slightly out of focus, in natural poses, or partially occluded.
+- Multiple people interacting: ~65% artifact rate
+- Text/logos in scene: warp consistently
 
 COMMON ARTIFACTS AND FIXES:
 - Face morphing: Be very specific about identifying characteristics. Add face-stability terms.
-- Flickering: Lower guidance scale, simplify motion
+- Flickering: Lower guidance scale (optimal 5-6, max 7), simplify motion
 - Identity drift: Use negative terms for drift
 - Jittering: Add "smooth motion" positive and "jitter" negative
 

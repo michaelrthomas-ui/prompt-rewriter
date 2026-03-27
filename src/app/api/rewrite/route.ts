@@ -371,31 +371,32 @@ Example: {"questions":["Should the camera slowly push in toward the subject?","D
         }
       }
 
-      // Post-process: fix any "A or B?" questions that slipped through
-      // Strategy: if a question contains " or " between two option-like phrases, rephrase it
+      // Post-process: fix any "A or B?" choice questions that slipped through
+      // Only catch REAL choice patterns like ", or should", ", or would", "X or Y?" at end
+      // Do NOT touch synonyms like "unexpected or surprising" or ranges like "2 or 3"
       parsed.questions = parsed.questions.map((q: string) => {
-        // Detect "or" presenting alternatives: "Should X, or Y?", "Should X or Y?", "Do you want X or Y?"
-        // But allow "or" in phrases like "one or two movements", "two or three seconds" (number ranges)
-        const hasOrAlternative = /\b(?:should|do|does|would|will|can|could)\b.+\bor\b.+\?/i.test(q)
-          && !/\b\d+\s+or\s+\d+\b/i.test(q); // exclude "2 or 3" number ranges
-
-        if (hasOrAlternative) {
-          // Take everything before " or " / ", or " and make it the question
-          const parts = q.split(/,?\s+or\s+/i);
-          if (parts.length >= 2) {
-            let firstPart = parts[0].trim();
-            // Make sure it ends with ?
-            if (!firstPart.endsWith("?")) firstPart += "?";
-            // Make sure it starts properly (capitalize)
-            firstPart = firstPart.charAt(0).toUpperCase() + firstPart.slice(1);
-            return firstPart;
-          }
+        // Pattern 1: "Should X, or should/would/do Y?" — two separate clauses joined by ", or"
+        const commaOrClause = q.match(/^(.{20,}),\s+or\s+(?:should|would|do|does|will|can|could)\s+.+\?$/i);
+        if (commaOrClause) {
+          let firstPart = commaOrClause[1].trim();
+          if (!firstPart.endsWith("?")) firstPart += "?";
+          return firstPart;
         }
+
+        // Pattern 2: "Do you want X or Y?" where X and Y are clearly alternatives
+        // Detected by ", or " (comma before or = deliberate alternative)
+        const commaOr = q.match(/^(.{20,}),\s+or\s+(.+?\?)\s*$/i);
+        if (commaOr) {
+          let firstPart = commaOr[1].trim();
+          if (!firstPart.endsWith("?")) firstPart += "?";
+          return firstPart;
+        }
+
         return q;
       });
 
-      // Safety: filter out any questions that are too short (< 15 chars) as they were likely truncated
-      parsed.questions = parsed.questions.filter((q: string) => q.length >= 15);
+      // Safety: filter out any questions that are too short (< 20 chars) as they were likely truncated
+      parsed.questions = parsed.questions.filter((q: string) => q.length >= 20);
 
       return Response.json({ questions: parsed.questions, readyToGenerate: parsed.readyToGenerate });
 

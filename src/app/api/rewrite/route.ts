@@ -443,8 +443,13 @@ Return ONLY the final prompt, nothing else. No explanations, no commentary, no q
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("API error:", message);
+    // Friendly messages for common API issues
+    const isServerDown = /502|503|504|Server exception/i.test(message);
+    const friendlyMessage = isServerDown
+      ? "The AI service is temporarily down. This usually resolves in a few minutes — please try again shortly."
+      : `Failed to process request: ${message}`;
     return Response.json(
-      { error: `Failed to process request: ${message}` },
+      { error: friendlyMessage },
       { status: 500 }
     );
   }

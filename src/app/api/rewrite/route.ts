@@ -428,7 +428,7 @@ FORMATTING RULES FOR THE OUTPUT PROMPT:
 - Use specific action verbs and cinematic language.
 - Use positive descriptions only (never "no X" or "without X").
 
-COMPLEXITY CHECK: If the user's idea involves WAY too much action for a single ${clipDuration}-second clip, add a note at the very end on a new line starting with "⚠️ TIP:" suggesting the user could break this into multiple clips for better results, and briefly explain how. But STILL write the single prompt — let the user decide if they want to split it.
+COMPLEXITY CHECK: If the user's idea involves WAY too much action for a single ${clipDuration}-second clip, add a note at the very end on a new line starting with "⚠️ TIP:" suggesting the action might be a lot for ${clipDuration} seconds, and the user could split this into separate clip prompts for better results. Do NOT mention "Extend from Frame" or any specific tool features. But STILL write the single prompt above the tip — let the user decide if they want to split it.
 
 ${image ? `CRITICAL: The prompt MUST describe how the uploaded image should ANIMATE into video. Describe motion, camera movement, and changes — NOT dialogue or text overlays. If the user's original prompt contained text they wanted spoken, translate that intent into visual actions (e.g. a person's lips moving naturally, confident body language, hand gestures) that ${modelName} can actually render.` : ""}
 
@@ -437,8 +437,32 @@ Return ONLY the final prompt, nothing else. No explanations, no commentary, no q
       const rewritten = await callKieAI(buildContent(textPrompt, image));
       return Response.json({ rewritten });
 
+    } else if (action === "split") {
+      const clipDuration = duration || (model === "wan" ? 5 : 8);
+      const textPrompt = `${expertise}
+
+You previously wrote this single prompt for a ${modelName} image-to-video generation:
+
+"${prompt}"
+
+The user wants to split this into MULTIPLE shorter clips because the action is too complex for a single ${clipDuration}-second clip.
+
+Split the prompt into 2-3 separate clip prompts. Each clip should:
+- Be labeled "Clip 1:", "Clip 2:", etc. on its own line
+- Contain ONE primary action that fits naturally in ${clipDuration} seconds
+- Be 50-120 words
+- Pick up where the previous clip left off (so they can be generated in sequence)
+- Front-load the key action in the first 20 words
+- Include camera, lighting, and audio descriptions
+- Use positive descriptions only (never "no X" or "without X")
+
+Return ONLY the clip prompts with their labels. No explanations or commentary.`;
+
+      const rewritten = await callKieAI(textPrompt);
+      return Response.json({ rewritten });
+
     } else {
-      return Response.json({ error: "Action must be 'analyze' or 'generate'" }, { status: 400 });
+      return Response.json({ error: "Action must be 'analyze', 'generate', or 'split'" }, { status: 400 });
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

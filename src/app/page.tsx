@@ -294,8 +294,58 @@ export default function Home() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  // Separate the prompt from any TIP line
+  function getPromptAndTip(text: string): { prompt: string; tip: string | null } {
+    const tipMatch = text.match(/\n\n?(⚠️ TIP:[\s\S]+)$/);
+    if (tipMatch) {
+      return {
+        prompt: text.slice(0, tipMatch.index).trim(),
+        tip: tipMatch[1].trim(),
+      };
+    }
+    return { prompt: text, tip: null };
+  }
+
+  const { prompt: cleanPrompt, tip: promptTip } = getPromptAndTip(rewritten);
+
   function handleCopy() {
-    navigator.clipboard.writeText(rewritten);
+    navigator.clipboard.writeText(cleanPrompt);
+  }
+
+  async function handleSplitIntoClips() {
+    setLoading(true);
+    setLoadingMessage("Splitting into separate clips...");
+    setError("");
+
+    const allQuestions = collectAllQuestions();
+
+    try {
+      const res = await fetch("/api/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          action: "split",
+          prompt: cleanPrompt,
+          questions: allQuestions,
+          image: imageDataUrl || undefined,
+          duration: model === "wan" ? wanDuration : 8,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to split prompt");
+      }
+
+      const data = await res.json();
+      setRewritten(data.rewritten);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+      setLoadingMessage("");
+    }
   }
 
   // Shared image thumbnail component
@@ -714,9 +764,23 @@ export default function Home() {
                 </button>
               </div>
               <div className="rounded-lg bg-slate-800 border border-emerald-700/50 px-4 py-3 text-white whitespace-pre-wrap">
-                {rewritten}
+                {cleanPrompt}
               </div>
             </div>
+
+            {/* TIP shown outside the copy area */}
+            {promptTip && (
+              <div className="mt-3 p-3 rounded-lg bg-amber-900/30 border border-amber-700/50">
+                <p className="text-amber-300 text-sm">{promptTip}</p>
+                <button
+                  onClick={handleSplitIntoClips}
+                  disabled={loading}
+                  className="mt-2 px-4 py-2 rounded-lg font-semibold text-sm bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-50 transition-all cursor-pointer"
+                >
+                  {loading ? "Splitting..." : "Split Into Separate Clips"}
+                </button>
+              </div>
+            )}
 
             {/* Post-result actions */}
             <div className="flex gap-3 mt-4">

@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
     if (questions && Array.isArray(questions) && questions.length > 0) {
       qaContext = "\n\nPrevious clarifications from the user:\n";
       for (const q of questions) {
-        qaContext += `- "${q.question}" → ${q.answer === "yes" ? "Yes" : "No"}\n`;
+        qaContext += `- "${q.question}" → ${q.answer}\n`;
       }
     }
 
@@ -233,7 +233,7 @@ A user wants to create an image-to-video prompt for ${modelName}. Their initial 
 
 "${prompt}"${imageContext}${qaContext}
 
-Based on your expertise with ${modelName}, generate exactly 5 yes/no clarifying questions that will help you understand what they REALLY want. Focus on:
+Based on your expertise with ${modelName}, generate 3-5 clarifying questions that will help you understand what they REALLY want. The user can answer Yes, No, or type a custom response. Focus on:
 - Ambiguities in their description that could lead to unexpected results
 - Important details they haven't specified that ${modelName} needs (camera, lighting, style, mood, motion)
 - Potential misunderstandings or things ${modelName} might interpret differently than intended
@@ -242,26 +242,44 @@ ${image ? "- WHETHER THE PROMPT ACTUALLY MAKES SENSE FOR IMAGE-TO-VIDEO (if it c
 
 ${questions && questions.length > 0 ? "IMPORTANT: Do NOT repeat any questions already asked above. Ask NEW questions that dig deeper based on what we now know from their previous answers." : ""}
 
-CRITICAL FORMATTING RULE: Every question MUST be answerable with a simple "Yes" or "No." Do NOT ask "A or B?" style questions. Instead of "Should it be fast or slow?" ask two separate questions: "Should the motion be fast/sudden?" (if No, we'll assume slow/smooth). Each question must make sense with just Yes or No as the answer.
+QUESTION FORMAT: Each question should be concise and clear. They can be yes/no questions OR short-answer questions (e.g. "What mood or emotion should the video convey?" or "Should the camera be moving during this shot?"). The user can always type a custom answer even for yes/no questions.
 
-Return ONLY a JSON array of 5 question strings. No explanations, no markdown, no code blocks. Just the raw JSON array.
-Example: ["Should the camera be moving during this shot?","Would you like warm golden lighting rather than cool blue?","Should this be photorealistic?","Do you want motion blur to emphasize speed?","Should the subject stay centered in the frame?"]`;
+READINESS ASSESSMENT: Based on the original prompt and all answers so far, decide if you have ENOUGH information to write an excellent ${modelName} prompt. You need at minimum: a clear subject/scene, motion intent, and camera/style direction. If you have all of these, set "readyToGenerate" to true. If critical details are still missing, set it to false.
+
+Return ONLY a JSON object with this exact format (no markdown, no code blocks):
+{"questions":["question 1","question 2","question 3"],"readyToGenerate":false}
+
+Example: {"questions":["Should the camera be moving during this shot?","What mood or emotion should the video convey?","Should this be photorealistic?"],"readyToGenerate":false}`;
 
       const text = await callKieAI(buildContent(textPrompt, image));
 
-      let parsed;
+      let parsed: { questions: string[]; readyToGenerate: boolean };
       try {
-        const match = text.match(/\[[\s\S]*\]/);
-        parsed = match ? JSON.parse(match[0]) : JSON.parse(text);
+        const match = text.match(/\{[\s\S]*\}/);
+        const obj = match ? JSON.parse(match[0]) : JSON.parse(text);
+        parsed = {
+          questions: Array.isArray(obj.questions) ? obj.questions : [],
+          readyToGenerate: !!obj.readyToGenerate,
+        };
       } catch {
-        parsed = text
-          .split("\n")
-          .map((l: string) => l.replace(/^\d+\.\s*/, "").replace(/^["']|["']$/g, "").trim())
-          .filter((l: string) => l.length > 10)
-          .slice(0, 5);
+        // Fallback: treat as array of questions
+        try {
+          const arrMatch = text.match(/\[[\s\S]*\]/);
+          const arr = arrMatch ? JSON.parse(arrMatch[0]) : [];
+          parsed = { questions: arr, readyToGenerate: false };
+        } catch {
+          parsed = {
+            questions: text
+              .split("\n")
+              .map((l: string) => l.replace(/^\d+\.\s*/, "").replace(/^["']|["']$/g, "").trim())
+              .filter((l: string) => l.length > 10)
+              .slice(0, 5),
+            readyToGenerate: false,
+          };
+        }
       }
 
-      return Response.json({ questions: parsed });
+      return Response.json({ questions: parsed.questions, readyToGenerate: parsed.readyToGenerate });
 
     } else if (action === "generate") {
       const textPrompt = `${expertise}

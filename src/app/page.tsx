@@ -7,12 +7,14 @@ type Model = "grok" | "wan";
 
 interface AnsweredQuestion {
   question: string;
-  answer: "yes" | "no";
+  answer: string;
 }
 
 interface PendingQuestion {
   question: string;
-  answer: "yes" | "no" | null;
+  answer: string | null;
+  customText: string;
+  useCustom: boolean;
 }
 
 export default function Home() {
@@ -27,6 +29,7 @@ export default function Home() {
   const [loadingMessage, setLoadingMessage] = useState("");
   const [error, setError] = useState("");
   const [step, setStep] = useState<"input" | "questions" | "result">("input");
+  const [readyToGenerate, setReadyToGenerate] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function resizeImage(file: File): Promise<string> {
@@ -84,6 +87,12 @@ export default function Home() {
     if (file) processImage(file);
   }
 
+  function getResolvedAnswer(q: PendingQuestion): string {
+    if (q.useCustom && q.customText.trim()) return q.customText.trim();
+    if (q.answer === "yes" || q.answer === "no") return q.answer === "yes" ? "Yes" : "No";
+    return "";
+  }
+
   async function handleAnalyze() {
     if (!prompt.trim()) return;
     setLoading(true);
@@ -92,6 +101,7 @@ export default function Home() {
     setPendingQuestions([]);
     setAnsweredQuestions([]);
     setRewritten("");
+    setReadyToGenerate(false);
 
     try {
       const res = await fetch("/api/rewrite", {
@@ -112,8 +122,9 @@ export default function Home() {
 
       const data = await res.json();
       setPendingQuestions(
-        data.questions.map((q: string) => ({ question: q, answer: null }))
+        data.questions.map((q: string) => ({ question: q, answer: null, customText: "", useCustom: false }))
       );
+      setReadyToGenerate(!!data.readyToGenerate);
       setStep("questions");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -125,24 +136,43 @@ export default function Home() {
 
   function handleAnswer(index: number, answer: "yes" | "no") {
     setPendingQuestions((prev) =>
-      prev.map((q, i) => (i === index ? { ...q, answer } : q))
+      prev.map((q, i) => (i === index ? { ...q, answer, useCustom: false } : q))
     );
   }
 
-  const allAnswered = pendingQuestions.length > 0 && pendingQuestions.every((q) => q.answer !== null);
+  function handleCustomToggle(index: number) {
+    setPendingQuestions((prev) =>
+      prev.map((q, i) => (i === index ? { ...q, useCustom: !q.useCustom, answer: q.useCustom ? q.answer : null } : q))
+    );
+  }
+
+  function handleCustomText(index: number, text: string) {
+    setPendingQuestions((prev) =>
+      prev.map((q, i) => (i === index ? { ...q, customText: text } : q))
+    );
+  }
+
+  const allAnswered = pendingQuestions.length > 0 && pendingQuestions.every((q) => {
+    if (q.useCustom) return q.customText.trim().length > 0;
+    return q.answer !== null;
+  });
+
+  function collectAllQuestions(): AnsweredQuestion[] {
+    return [
+      ...answeredQuestions,
+      ...pendingQuestions.map((q) => ({
+        question: q.question,
+        answer: getResolvedAnswer(q),
+      })),
+    ];
+  }
 
   async function handleGenerate() {
     setLoading(true);
     setLoadingMessage("Crafting your optimized prompt...");
     setError("");
 
-    const allQuestions = [
-      ...answeredQuestions,
-      ...pendingQuestions.map((q) => ({
-        question: q.question,
-        answer: q.answer as "yes" | "no",
-      })),
-    ];
+    const allQuestions = collectAllQuestions();
 
     try {
       const res = await fetch("/api/rewrite", {
@@ -179,13 +209,7 @@ export default function Home() {
     setLoadingMessage("Thinking of more questions...");
     setError("");
 
-    const allQuestions = [
-      ...answeredQuestions,
-      ...pendingQuestions.map((q) => ({
-        question: q.question,
-        answer: q.answer as "yes" | "no",
-      })),
-    ];
+    const allQuestions = collectAllQuestions();
 
     try {
       const res = await fetch("/api/rewrite", {
@@ -208,8 +232,9 @@ export default function Home() {
       const data = await res.json();
       setAnsweredQuestions(allQuestions);
       setPendingQuestions(
-        data.questions.map((q: string) => ({ question: q, answer: null }))
+        data.questions.map((q: string) => ({ question: q, answer: null, customText: "", useCustom: false }))
       );
+      setReadyToGenerate(!!data.readyToGenerate);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -226,6 +251,7 @@ export default function Home() {
     setPendingQuestions([]);
     setRewritten("");
     setError("");
+    setReadyToGenerate(false);
     setStep("input");
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
@@ -383,18 +409,34 @@ export default function Home() {
               <p className="text-slate-300 mt-1">{prompt}</p>
             </div>
 
+            {/* Ready to generate notification */}
+            {readyToGenerate && (
+              <div className="mb-4 p-3 rounded-lg bg-emerald-900/40 border border-emerald-600/50">
+                <p className="text-emerald-300 text-sm font-medium">
+                  The AI thinks it has enough info to write a great prompt! You can generate now, or keep answering to fine-tune.
+                </p>
+              </div>
+            )}
+
             {/* Show previously answered questions */}
             {answeredQuestions.length > 0 && (
               <div className="mb-4 space-y-2">
                 <span className="text-xs text-slate-500 uppercase tracking-wide">Previous answers</span>
                 {answeredQuestions.map((q, i) => (
-                  <div key={`answered-${i}`} className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/30">
-                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                      q.answer === "yes" ? "bg-emerald-600/30 text-emerald-400" : "bg-red-600/30 text-red-400"
+                  <div key={`answered-${i}`} className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/30">
+                    <span className={`px-2 py-0.5 rounded text-xs font-bold shrink-0 mt-0.5 ${
+                      q.answer === "Yes" ? "bg-emerald-600/30 text-emerald-400"
+                        : q.answer === "No" ? "bg-red-600/30 text-red-400"
+                        : "bg-blue-600/30 text-blue-400"
                     }`}>
-                      {q.answer.toUpperCase()}
+                      {q.answer.length <= 3 ? q.answer.toUpperCase() : "CUSTOM"}
                     </span>
-                    <span className="text-slate-400 text-sm">{q.question}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-slate-400 text-sm">{q.question}</span>
+                      {q.answer.length > 3 && (
+                        <p className="text-slate-300 text-sm mt-1 italic">&ldquo;{q.answer}&rdquo;</p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -411,11 +453,11 @@ export default function Home() {
                   className="p-4 rounded-lg bg-slate-800 border border-slate-700"
                 >
                   <p className="text-white mb-3">{q.question}</p>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={() => handleAnswer(i, "yes")}
                       className={`px-5 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-                        q.answer === "yes"
+                        q.answer === "yes" && !q.useCustom
                           ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/30"
                           : "bg-slate-700 text-slate-400 hover:bg-slate-600"
                       }`}
@@ -425,14 +467,34 @@ export default function Home() {
                     <button
                       onClick={() => handleAnswer(i, "no")}
                       className={`px-5 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-                        q.answer === "no"
+                        q.answer === "no" && !q.useCustom
                           ? "bg-red-600 text-white shadow-lg shadow-red-500/30"
                           : "bg-slate-700 text-slate-400 hover:bg-slate-600"
                       }`}
                     >
                       No
                     </button>
+                    <button
+                      onClick={() => handleCustomToggle(i)}
+                      className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
+                        q.useCustom
+                          ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+                          : "bg-slate-700 text-slate-400 hover:bg-slate-600"
+                      }`}
+                    >
+                      Other...
+                    </button>
                   </div>
+                  {q.useCustom && (
+                    <input
+                      type="text"
+                      value={q.customText}
+                      onChange={(e) => handleCustomText(i, e.target.value)}
+                      placeholder="Type your answer..."
+                      autoFocus
+                      className="mt-3 w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    />
+                  )}
                 </div>
               ))}
             </div>
@@ -442,7 +504,11 @@ export default function Home() {
               <div className="flex gap-3">
                 <button
                   onClick={handleGenerate}
-                  className="flex-1 py-3 rounded-lg font-semibold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 transition-all cursor-pointer"
+                  className={`flex-1 py-3 rounded-lg font-semibold text-lg transition-all cursor-pointer ${
+                    readyToGenerate
+                      ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-500/20"
+                      : "bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500"
+                  }`}
                 >
                   Generate Prompt
                 </button>
@@ -450,7 +516,7 @@ export default function Home() {
                   onClick={handleDigDeeper}
                   className="flex-1 py-3 rounded-lg font-semibold text-lg bg-slate-700 text-white hover:bg-slate-600 transition-all cursor-pointer"
                 >
-                  Dig Deeper
+                  Keep Refining
                 </button>
               </div>
             )}
@@ -489,13 +555,20 @@ export default function Home() {
                   What we learned ({answeredQuestions.length} questions answered)
                 </span>
                 {answeredQuestions.map((q, i) => (
-                  <div key={`result-q-${i}`} className="flex items-center gap-3 p-2 rounded-lg bg-slate-800/30 border border-slate-700/30">
-                    <span className={`px-2 py-0.5 rounded text-xs font-bold shrink-0 ${
-                      q.answer === "yes" ? "bg-emerald-600/30 text-emerald-400" : "bg-red-600/30 text-red-400"
+                  <div key={`result-q-${i}`} className="flex items-start gap-3 p-2 rounded-lg bg-slate-800/30 border border-slate-700/30">
+                    <span className={`px-2 py-0.5 rounded text-xs font-bold shrink-0 mt-0.5 ${
+                      q.answer === "Yes" ? "bg-emerald-600/30 text-emerald-400"
+                        : q.answer === "No" ? "bg-red-600/30 text-red-400"
+                        : "bg-blue-600/30 text-blue-400"
                     }`}>
-                      {q.answer.toUpperCase()}
+                      {q.answer.length <= 3 ? q.answer.toUpperCase() : "CUSTOM"}
                     </span>
-                    <span className="text-slate-400 text-sm">{q.question}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-slate-400 text-sm">{q.question}</span>
+                      {q.answer.length > 3 && (
+                        <p className="text-slate-300 text-sm mt-1 italic">&ldquo;{q.answer}&rdquo;</p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

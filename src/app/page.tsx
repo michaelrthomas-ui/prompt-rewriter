@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 
 type Model = "grok" | "wan";
@@ -31,6 +31,7 @@ export default function Home() {
   const [step, setStep] = useState<"input" | "questions" | "result">("input");
   const [readyToGenerate, setReadyToGenerate] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   function resizeImage(file: File): Promise<string> {
     return new Promise((resolve) => {
@@ -92,6 +93,13 @@ export default function Home() {
     if (q.answer === "yes" || q.answer === "no") return q.answer === "yes" ? "Yes" : "No";
     return "";
   }
+
+  // Scroll to bottom when new content appears
+  useEffect(() => {
+    if (step === "questions") {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [pendingQuestions, loading, step]);
 
   async function handleAnalyze() {
     if (!prompt.trim()) return;
@@ -167,6 +175,58 @@ export default function Home() {
     ];
   }
 
+  const fetchMoreQuestions = useCallback(async (allQuestions: AnsweredQuestion[]) => {
+    setLoading(true);
+    setLoadingMessage("Thinking of more questions...");
+    setError("");
+
+    try {
+      const res = await fetch("/api/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          action: "analyze",
+          prompt,
+          questions: allQuestions,
+          image: imageDataUrl || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to get more questions");
+      }
+
+      const data = await res.json();
+      setAnsweredQuestions(allQuestions);
+      setPendingQuestions(
+        data.questions.map((q: string) => ({ question: q, answer: null, customText: "", useCustom: false }))
+      );
+      setReadyToGenerate(!!data.readyToGenerate);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+      setLoadingMessage("");
+    }
+  }, [model, prompt, imageDataUrl]);
+
+  // Auto-continue: when all questions are answered and AI isn't ready yet, auto-fetch more
+  const autoFetchTriggered = useRef(false);
+  useEffect(() => {
+    if (allAnswered && !loading && step === "questions" && !readyToGenerate && !autoFetchTriggered.current) {
+      autoFetchTriggered.current = true;
+      const allQ = collectAllQuestions();
+      fetchMoreQuestions(allQ);
+    }
+    // Reset trigger when new questions arrive
+    if (!allAnswered) {
+      autoFetchTriggered.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allAnswered, loading, step, readyToGenerate]);
+
   async function handleGenerate() {
     setLoading(true);
     setLoadingMessage("Crafting your optimized prompt...");
@@ -204,43 +264,10 @@ export default function Home() {
     }
   }
 
-  async function handleDigDeeper() {
-    setLoading(true);
-    setLoadingMessage("Thinking of more questions...");
-    setError("");
-
+  async function handleKeepRefining() {
     const allQuestions = collectAllQuestions();
-
-    try {
-      const res = await fetch("/api/rewrite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          action: "analyze",
-          prompt,
-          questions: allQuestions,
-          image: imageDataUrl || undefined,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to get more questions");
-      }
-
-      const data = await res.json();
-      setAnsweredQuestions(allQuestions);
-      setPendingQuestions(
-        data.questions.map((q: string) => ({ question: q, answer: null, customText: "", useCustom: false }))
-      );
-      setReadyToGenerate(!!data.readyToGenerate);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setLoading(false);
-      setLoadingMessage("");
-    }
+    autoFetchTriggered.current = true;
+    await fetchMoreQuestions(allQuestions);
   }
 
   function handleStartOver() {
@@ -253,6 +280,7 @@ export default function Home() {
     setError("");
     setReadyToGenerate(false);
     setStep("input");
+    autoFetchTriggered.current = false;
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -409,19 +437,34 @@ export default function Home() {
               <p className="text-slate-300 mt-1">{prompt}</p>
             </div>
 
-            {/* Ready to generate notification */}
+            {/* Ready to generate notification - sticky at top */}
             {readyToGenerate && (
-              <div className="mb-4 p-3 rounded-lg bg-emerald-900/40 border border-emerald-600/50">
-                <p className="text-emerald-300 text-sm font-medium">
-                  The AI thinks it has enough info to write a great prompt! You can generate now, or keep answering to fine-tune.
+              <div className="mb-4 p-4 rounded-lg bg-emerald-900/40 border-2 border-emerald-500/60 shadow-lg shadow-emerald-500/10">
+                <p className="text-emerald-300 font-medium mb-3">
+                  The AI has enough info to write a great prompt!
                 </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleGenerate}
+                    disabled={loading}
+                    className="flex-1 py-3 rounded-lg font-semibold text-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition-all cursor-pointer"
+                  >
+                    Generate Prompt Now
+                  </button>
+                  <button
+                    onClick={() => {/* user just keeps answering below */}}
+                    className="px-4 py-3 rounded-lg font-semibold text-sm bg-slate-700 text-slate-300 hover:bg-slate-600 transition-all cursor-pointer"
+                  >
+                    Keep Refining
+                  </button>
+                </div>
               </div>
             )}
 
             {/* Show previously answered questions */}
             {answeredQuestions.length > 0 && (
               <div className="mb-4 space-y-2">
-                <span className="text-xs text-slate-500 uppercase tracking-wide">Previous answers</span>
+                <span className="text-xs text-slate-500 uppercase tracking-wide">Previous answers ({answeredQuestions.length})</span>
                 {answeredQuestions.map((q, i) => (
                   <div key={`answered-${i}`} className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/30">
                     <span className={`px-2 py-0.5 rounded text-xs font-bold shrink-0 mt-0.5 ${
@@ -443,77 +486,75 @@ export default function Home() {
             )}
 
             {/* Current questions */}
-            <div className="space-y-3 mb-6">
-              <span className="text-xs text-slate-500 uppercase tracking-wide">
-                Help us understand what you want
-              </span>
-              {pendingQuestions.map((q, i) => (
-                <div
-                  key={`pending-${i}`}
-                  className="p-4 rounded-lg bg-slate-800 border border-slate-700"
-                >
-                  <p className="text-white mb-3">{q.question}</p>
-                  <div className="flex gap-2 flex-wrap">
-                    <button
-                      onClick={() => handleAnswer(i, "yes")}
-                      className={`px-5 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-                        q.answer === "yes" && !q.useCustom
-                          ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/30"
-                          : "bg-slate-700 text-slate-400 hover:bg-slate-600"
-                      }`}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      onClick={() => handleAnswer(i, "no")}
-                      className={`px-5 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-                        q.answer === "no" && !q.useCustom
-                          ? "bg-red-600 text-white shadow-lg shadow-red-500/30"
-                          : "bg-slate-700 text-slate-400 hover:bg-slate-600"
-                      }`}
-                    >
-                      No
-                    </button>
-                    <button
-                      onClick={() => handleCustomToggle(i)}
-                      className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-                        q.useCustom
-                          ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
-                          : "bg-slate-700 text-slate-400 hover:bg-slate-600"
-                      }`}
-                    >
-                      Other...
-                    </button>
+            {pendingQuestions.length > 0 && (
+              <div className="space-y-3 mb-6">
+                <span className="text-xs text-slate-500 uppercase tracking-wide">
+                  {readyToGenerate ? "Optional: fine-tune further" : "Help us understand what you want"}
+                </span>
+                {pendingQuestions.map((q, i) => (
+                  <div
+                    key={`pending-${i}`}
+                    className="p-4 rounded-lg bg-slate-800 border border-slate-700"
+                  >
+                    <p className="text-white mb-3">{q.question}</p>
+                    <div className="flex gap-2 flex-wrap">
+                      <button
+                        onClick={() => handleAnswer(i, "yes")}
+                        className={`px-5 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
+                          q.answer === "yes" && !q.useCustom
+                            ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/30"
+                            : "bg-slate-700 text-slate-400 hover:bg-slate-600"
+                        }`}
+                      >
+                        Yes
+                      </button>
+                      <button
+                        onClick={() => handleAnswer(i, "no")}
+                        className={`px-5 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
+                          q.answer === "no" && !q.useCustom
+                            ? "bg-red-600 text-white shadow-lg shadow-red-500/30"
+                            : "bg-slate-700 text-slate-400 hover:bg-slate-600"
+                        }`}
+                      >
+                        No
+                      </button>
+                      <button
+                        onClick={() => handleCustomToggle(i)}
+                        className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
+                          q.useCustom
+                            ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+                            : "bg-slate-700 text-slate-400 hover:bg-slate-600"
+                        }`}
+                      >
+                        Other...
+                      </button>
+                    </div>
+                    {q.useCustom && (
+                      <input
+                        type="text"
+                        value={q.customText}
+                        onChange={(e) => handleCustomText(i, e.target.value)}
+                        placeholder="Type your answer..."
+                        autoFocus
+                        className="mt-3 w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      />
+                    )}
                   </div>
-                  {q.useCustom && (
-                    <input
-                      type="text"
-                      value={q.customText}
-                      onChange={(e) => handleCustomText(i, e.target.value)}
-                      placeholder="Type your answer..."
-                      autoFocus
-                      className="mt-3 w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
-            {/* Action buttons */}
-            {allAnswered && !loading && (
-              <div className="flex gap-3">
+            {/* When ready and all answered, show generate button again at bottom */}
+            {readyToGenerate && allAnswered && !loading && (
+              <div className="flex gap-3 mb-4">
                 <button
                   onClick={handleGenerate}
-                  className={`flex-1 py-3 rounded-lg font-semibold text-lg transition-all cursor-pointer ${
-                    readyToGenerate
-                      ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-500/20"
-                      : "bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500"
-                  }`}
+                  className="flex-1 py-3 rounded-lg font-semibold text-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
                 >
                   Generate Prompt
                 </button>
                 <button
-                  onClick={handleDigDeeper}
+                  onClick={handleKeepRefining}
                   className="flex-1 py-3 rounded-lg font-semibold text-lg bg-slate-700 text-white hover:bg-slate-600 transition-all cursor-pointer"
                 >
                   Keep Refining
@@ -521,8 +562,20 @@ export default function Home() {
               </div>
             )}
 
+            {/* Before ready, show generate option after answering */}
+            {!readyToGenerate && allAnswered && !loading && (
+              <div className="mb-4">
+                <button
+                  onClick={handleGenerate}
+                  className="w-full py-3 rounded-lg font-semibold bg-slate-700 text-slate-300 hover:bg-slate-600 transition-all cursor-pointer text-sm"
+                >
+                  Generate prompt with what we have so far
+                </button>
+              </div>
+            )}
+
             {loading && (
-              <div className="text-center py-4 text-slate-400">
+              <div className="text-center py-4 text-slate-400 animate-pulse">
                 {loadingMessage}
               </div>
             )}
@@ -533,6 +586,8 @@ export default function Home() {
             >
               Start Over
             </button>
+
+            <div ref={bottomRef} />
           </>
         )}
 
@@ -599,7 +654,9 @@ export default function Home() {
                   setRewritten("");
                   setPendingQuestions([]);
                   setStep("questions");
-                  handleDigDeeper();
+                  autoFetchTriggered.current = false;
+                  const allQ = collectAllQuestions();
+                  fetchMoreQuestions(allQ);
                 }}
                 disabled={loading}
                 className="flex-1 py-3 rounded-lg font-semibold bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-50 transition-all cursor-pointer"

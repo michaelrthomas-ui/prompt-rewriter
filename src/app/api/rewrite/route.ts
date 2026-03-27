@@ -149,20 +149,25 @@ async function callKieAI(content: string | MessageContent[]) {
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-5",
+      max_tokens: 4096,
       stream: false,
       messages: [{ role: "user", content }],
     }),
   });
 
   if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(errorData.msg || "API request failed");
+    let errorMsg = `API returned ${res.status}`;
+    try {
+      const errorData = await res.json();
+      errorMsg = errorData.msg || errorData.error?.message || errorMsg;
+    } catch { /* ignore parse errors */ }
+    throw new Error(errorMsg);
   }
 
   const data = await res.json();
 
   if (data.code && data.code !== 200) {
-    throw new Error(data.msg || "API request failed");
+    throw new Error(data.msg || `API error code ${data.code}`);
   }
 
   return data.content?.[0]?.text || "";
@@ -242,14 +247,18 @@ ${image ? "- WHETHER THE PROMPT ACTUALLY MAKES SENSE FOR IMAGE-TO-VIDEO (if it c
 
 ${questions && questions.length > 0 ? "IMPORTANT: Do NOT repeat any questions already asked above. Ask NEW questions that dig deeper based on what we now know from their previous answers." : ""}
 
-QUESTION FORMAT: Each question should be concise and clear. They can be yes/no questions OR short-answer questions (e.g. "What mood or emotion should the video convey?" or "Should the camera be moving during this shot?"). The user can always type a custom answer even for yes/no questions.
+CRITICAL QUESTION FORMAT RULES:
+1. Every question MUST be answerable with "Yes", "No", or a short typed answer.
+2. NEVER ask "A or B?" style questions (e.g. "Should it be fast or slow?"). Instead, pick one option and ask about it: "Should the motion be fast/energetic?" (user answers Yes, No, or types something else).
+3. NEVER ask "Should X, or should Y?" — these don't work with Yes/No buttons.
+4. Keep questions concise and specific.
 
 READINESS ASSESSMENT: Based on the original prompt and all answers so far, decide if you have ENOUGH information to write an excellent ${modelName} prompt. You need at minimum: a clear subject/scene, motion intent, and camera/style direction. If you have all of these, set "readyToGenerate" to true. If critical details are still missing, set it to false.
 
 Return ONLY a JSON object with this exact format (no markdown, no code blocks):
 {"questions":["question 1","question 2","question 3"],"readyToGenerate":false}
 
-Example: {"questions":["Should the camera be moving during this shot?","What mood or emotion should the video convey?","Should this be photorealistic?"],"readyToGenerate":false}`;
+Example: {"questions":["Should the camera slowly push in toward the subject?","Do you want a cinematic film look?","Should the lighting feel warm and golden?"],"readyToGenerate":false}`;
 
       const text = await callKieAI(buildContent(textPrompt, image));
 
@@ -301,9 +310,10 @@ Return ONLY the final prompt, nothing else. No explanations, no labels, no quote
       return Response.json({ error: "Action must be 'analyze' or 'generate'" }, { status: 400 });
     }
   } catch (err) {
-    console.error("API error:", err);
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("API error:", message);
     return Response.json(
-      { error: "Failed to process request. Please try again." },
+      { error: `Failed to process request: ${message}` },
       { status: 500 }
     );
   }

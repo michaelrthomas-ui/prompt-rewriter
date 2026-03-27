@@ -261,19 +261,53 @@ If you detect a mismatch between the image and the prompt (e.g. the prompt conta
       const imageOnlyMode = !hasPrompt && image;
 
       let analyzeIntro: string;
+      const questionCount = questions ? questions.length : 0;
       if (imageOnlyMode) {
         analyzeIntro = `${expertise}
 
-A user wants to create an image-to-video prompt for ${modelName}. They uploaded a reference image (shown above) but did NOT provide any prompt text — they want help figuring out what to do with this image.
+A user wants to create an image-to-video prompt for ${modelName}. They uploaded a reference image (shown above) but did NOT write any prompt — they want YOUR help to figure out what to do with this image. Think of this like a game of "Guess Who" — you're narrowing down exactly what they envision through yes/no questions.
 
-Your job: Look at the image carefully and ask questions to understand what kind of video they want to create from it. Think creatively about what could be done with this image — what motions, effects, or stories could bring it to life?${qaContext}
+LOOK AT THE IMAGE CAREFULLY. Describe to yourself what you see — who/what is in it, the setting, the mood, what's interesting about it. Then ask questions that help narrow down their creative vision.${qaContext}
 
-Focus your questions on:
-- What kind of motion/animation they envision (the subject moving, camera moving, environmental effects, etc.)
-- The mood or tone they want (dramatic, funny, cinematic, dreamy, etc.)
-- Camera behavior (slow push-in, static shot, orbit, etc.)
-- Any specific style or atmosphere
-${questions && questions.length > 0 ? "- Dig DEEPER based on their previous answers. Do NOT repeat questions already asked." : "- Start broad to understand their vision, then narrow down."}`;
+${questionCount === 0 ? `ROUND 1 — START BROAD & CREATIVE:
+This is the FIRST round of questions. You know NOTHING about what they want yet. Start with the big creative questions:
+- Is this meant to be wild/surreal/fantastical? (e.g., monsters appearing, impossible physics, magical effects)
+- Is this meant to be realistic/natural? (e.g., natural movement, wind, breathing, subtle motion)
+- Is this meant to be funny/comedic?
+- Is this meant to be dramatic/cinematic/serious?
+- Should something unexpected happen in the scene?
+
+Generate 4-5 questions. Focus ENTIRELY on creative direction and vibe. Do NOT ask about technical details like camera angles or lighting yet — that comes later.
+
+IMPORTANT: Be SPECIFIC to what you see in the image. If you see a person holding a fish, ask about the fish. If you see a landscape, ask about weather or time changes. Reference actual elements from their image.` :
+questionCount < 8 ? `ROUND 2-3 — NARROW THE CREATIVE DIRECTION:
+Based on their answers so far, you're starting to understand their vibe. Now dig deeper:
+- If they want something wild: what KIND of wild? Supernatural? Sci-fi? Horror? Comedy?
+- If they want something realistic: what specific motion? Wind? Walking? Turning?
+- What should the main ACTION be? What moves? What changes?
+- Start introducing some style questions (mood, atmosphere, color feel)
+- Still keep it creative and fun — don't get too technical yet
+
+Generate 3-5 NEW questions based on what you've learned. Reference their previous answers.` :
+questionCount < 15 ? `ROUND 4+ — GET SPECIFIC:
+You should have a good sense of the creative direction by now. Start narrowing down specifics:
+- Exactly what motion/action happens?
+- How fast/slow should it be?
+- Camera movement preferences
+- Mood and atmosphere details
+- Style (cinematic, raw, dreamy, etc.)
+- Any finishing details that would make the prompt perfect
+
+Generate 3-4 NEW specific questions.` :
+`FINAL ROUNDS — POLISH:
+You've asked a lot of questions. Focus on any remaining gaps:
+- Confirm your understanding of the key action
+- Any last details about style, speed, or mood
+- Ask if there's anything they want that you haven't covered
+
+Generate 2-3 final questions.`}
+
+Do NOT repeat ANY previously asked questions. Each round must ask NEW questions that build on previous answers.`;
       } else {
         analyzeIntro = `${expertise}
 
@@ -300,7 +334,9 @@ CRITICAL QUESTION FORMAT RULES:
 4. Keep questions concise and specific.
 5. Before returning, re-read EVERY question and reject any that contain " or " presenting two choices. Rephrase those as single-option yes/no questions.
 
-READINESS ASSESSMENT: Based on the original prompt and all answers so far, decide if you have ENOUGH information to write an excellent ${modelName} prompt. You need at minimum: a clear subject/scene, motion intent, and camera/style direction. If you have all of these, set "readyToGenerate" to true. If critical details are still missing, set it to false.
+READINESS ASSESSMENT: Based on everything so far, decide if you have ENOUGH information to write an excellent ${modelName} prompt.
+${imageOnlyMode ? `For image-only mode, you need MORE info before you're ready — since there's no user prompt to start from, you need at MINIMUM: (1) a clear creative direction/vibe, (2) a specific main action or event, (3) some sense of mood/style. Do NOT set readyToGenerate to true until you've asked at least 6-8 questions and have a clear picture. It's better to ask too many questions than to generate a vague prompt.` : `You need at minimum: a clear subject/scene, motion intent, and camera/style direction.`}
+If you have all of these, set "readyToGenerate" to true. If critical details are still missing, set it to false.
 
 Return ONLY a JSON object with this exact format (no markdown, no code blocks):
 {"questions":["question 1","question 2","question 3"],"readyToGenerate":false}

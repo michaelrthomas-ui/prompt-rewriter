@@ -289,6 +289,21 @@ Example: {"questions":["Should the camera slowly push in toward the subject?","D
         }
       }
 
+      // Post-process: fix any "A or B?" questions that slipped through
+      parsed.questions = parsed.questions.map((q: string) => {
+        // Match patterns like "Should X, or Y?" or "Should X or Y?"
+        // Take only the first part before ", or" / " or " (when it presents two choices)
+        const orMatch = q.match(/^(.+?),?\s+or\s+(?:should\s+)?(.+?\?)\s*$/i);
+        if (orMatch) {
+          // Take the first option and make it a yes/no question
+          let firstPart = orMatch[1].trim();
+          // Ensure it ends with a question mark
+          if (!firstPart.endsWith("?")) firstPart += "?";
+          return firstPart;
+        }
+        return q;
+      });
+
       return Response.json({ questions: parsed.questions, readyToGenerate: parsed.readyToGenerate });
 
     } else if (action === "generate") {

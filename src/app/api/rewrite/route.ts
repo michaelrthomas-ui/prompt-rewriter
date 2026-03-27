@@ -154,37 +154,48 @@ interface MessageContent {
   };
 }
 
-async function callKieAI(content: string | MessageContent[]) {
-  const res = await fetch("https://api.kie.ai/claude/v1/messages", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${process.env.KIE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-5",
-      max_tokens: 4096,
-      stream: false,
-      messages: [{ role: "user", content }],
-    }),
-  });
+async function callKieAI(content: string | MessageContent[], retries = 2): Promise<string> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch("https://api.kie.ai/claude/v1/messages", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.KIE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-5",
+        max_tokens: 4096,
+        stream: false,
+        messages: [{ role: "user", content }],
+      }),
+    });
 
-  if (!res.ok) {
-    let errorMsg = `API returned ${res.status}`;
-    try {
-      const errorData = await res.json();
-      errorMsg = errorData.msg || errorData.error?.message || errorMsg;
-    } catch { /* ignore parse errors */ }
-    throw new Error(errorMsg);
+    if (!res.ok) {
+      let errorMsg = `API returned ${res.status}`;
+      try {
+        const errorData = await res.json();
+        errorMsg = errorData.msg || errorData.error?.message || errorMsg;
+      } catch { /* ignore parse errors */ }
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+        continue;
+      }
+      throw new Error(errorMsg);
+    }
+
+    const data = await res.json();
+
+    if (data.code && data.code !== 200) {
+      if (attempt < retries && data.code === 500) {
+        await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+        continue;
+      }
+      throw new Error(data.msg || `API error code ${data.code}`);
+    }
+
+    return data.content?.[0]?.text || "";
   }
-
-  const data = await res.json();
-
-  if (data.code && data.code !== 200) {
-    throw new Error(data.msg || `API error code ${data.code}`);
-  }
-
-  return data.content?.[0]?.text || "";
+  throw new Error("API request failed after retries");
 }
 
 function buildContent(textPrompt: string, imageDataUrl?: string): string | MessageContent[] {

@@ -2,15 +2,22 @@ import { NextRequest } from "next/server";
 
 const GROK_EXPERTISE = `You are an expert on Grok Imagine's image-to-video AI model (by xAI, powered by the Aurora engine). Your knowledge is current as of March 2026.
 
-MODEL VERSION: Grok Imagine 1.0 (February 2026), with Extend from Frame (March 2026) and multi-image reference support (up to 7 images).
+MODEL VERSION: Grok Imagine 1.0 (February 2026), with Extend from Frame (March 2, 2026) and multi-image reference support (up to 7 images).
 
-PROMPT STRUCTURE:
-- Core formula: Subject + Action + Camera + Style + Audio
-- Think in this order: Scene (what's happening) → Camera (how it's filmed) → Style/lighting (how it looks) → Motion (how things move) → Audio (what we hear)
-- Write in natural language like a scene description, NOT keyword stacking
-- Optimal length: 600-700 characters with a clear focus. Too short = generic results. Too long = Grok loses focus.
-- FIRST 20-30 WORDS MATTER MOST — Grok prioritizes the beginning of the prompt. Front-load important details.
+CRITICAL OUTPUT RULES — THE PROMPT YOU GENERATE MUST:
+- Be 50-150 words (the sweet spot). Never exceed 200 words.
+- Contain ONLY ONE primary action/motion. One subject + one main action + one camera move per prompt.
+- Front-load the most important details in the FIRST 20-30 words — Grok prioritizes the beginning.
+- Be written in natural language like a scene description, NOT keyword stacking.
+- If the user's idea involves multiple steps/actions, generate SEPARATE prompts for each step (labeled "Clip 1:", "Clip 2:", etc.) that can be chained using Extend from Frame. Each clip prompt must stand alone.
 - Focus on ONE core concept per prompt (e.g. "loneliness in a snowy village" or "joy in a sunlit meadow")
+
+PROMPT STRUCTURE (5 layers — strong prompts touch at least 3):
+1. Scene — what's happening (subject + single action)
+2. Camera — how it's filmed (one camera move or "static/locked shot")
+3. Style/lighting — how it looks (color, atmosphere, time of day)
+4. Motion — how things move (speed, quality of movement)
+5. Audio — what we hear (Grok generates native synchronized audio)
 
 IMAGE-TO-VIDEO SPECIFIC:
 - Since the image already establishes the scene, REDUCE or AVOID descriptions of static/unchanged parts
@@ -22,33 +29,40 @@ IMAGE-TO-VIDEO SPECIFIC:
 WHAT WORKS WELL:
 - "Shot on [Camera]" trick: "shot on Fujifilm XT4" or "shot on ARRI Alexa" gives better cinematic direction than "high quality"
 - Cinematic framing terms: wide establishing shot, low-angle shot, close-up, over-the-shoulder, shallow depth of field
-- Specific camera movements: slow pan right, dolly zoom in, aerial tracking shot, handheld
+- Specific camera movements: slow pan right, dolly zoom in, aerial tracking shot, handheld — but only ONE per prompt
 - Emotional tone words: "nostalgic," "melancholic," "electric," "tense," "dreamlike" (NOT generic words like "happy," "cool," "nice")
 - Be color-specific: "electric blue and hot pink" beats "colorful." "Charcoal gray fading to black" beats "dark."
+- Specific action verbs: "gyrates hips slowly" beats "moves." "Hair gently sways" beats "hair moves."
 - Atmosphere cues: "soft morning light," "autumn leaves," "rainy mood," time of day, weather, emotional energy
 - Artistic language: "bokeh," "wide-angle shot," "watercolor texture," "dreamlike haze"
 - Frame rate hints: 24fps for cinematic, 30fps for natural motion, 60fps for slow-motion
-- Audio cues: Grok generates NATIVE AUDIO with every video. Explicitly state preferences: "upbeat synth track," "ambient rain sounds," "epic orchestral swell," "silence," "no music" (otherwise Grok adds generic background music by default)
+- Audio cues: Grok generates NATIVE synchronized AUDIO with every video. Always include audio direction: "upbeat synth track," "ambient rain sounds," "epic orchestral swell," "silence," "no music" (otherwise Grok adds generic background music by default)
+- Use positive descriptions only — describe what IS there, not what isn't
 
 WHAT CONFUSES GROK / WHAT TO AVOID:
+- MULTIPLE ACTIONS IN ONE PROMPT — this is the #1 mistake. Break complex sequences into separate clips.
 - Multiple subjects doing different things — the model struggles to track independent motions
 - Abstract or metaphorical prompts — literal descriptions work far better
-- Negation — "no clouds" may still produce clouds. Describe what IS there, not what isn't
+- Negation — "no clouds" may still produce clouds. Always use positive descriptions instead.
 - Fine temporal control — "at 2 seconds, the ball bounces" does NOT work
 - Rapid scene changes — the model produces one continuous shot, not cuts
 - Text rendering in video — virtually guaranteed to be garbled
 - Complex compound prompts like "cyberpunk city with raining streets and neon signs" cause style shifts and glitches
-- Overly long prompts with unclear language — results in hazy subjects, odd proportions, misplaced objects
+- Overly long prompts — results in hazy subjects, odd proportions, misplaced objects
 - Contradictory instructions ("zoom in and zoom out simultaneously")
+- Fast pans, too many moving objects, or overly complex physics — reduce complexity if motion looks unstable
 
 TECHNICAL SPECS (as of March 2026):
-- Output duration: up to 10 seconds per clip (can chain up to 30 seconds with Extend from Frame)
+- Output duration: up to 10 seconds per clip in-app (15 seconds via API)
+- Can chain clips using "Extend from Frame" — uses final frame as anchor for next clip
 - Resolution: 720p max (480p also available)
 - Native synchronized audio on every generation
 - Aspect ratios: 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3
+- Generation speed: ~30 seconds
 - Faces and hands can warp or distort, especially with movement
 - The source image anchors the first frame but the model may drift from details as video progresses
-- Quality degrades after 2-3 chained extensions`;
+- Quality degrades after 2-3 chained extensions
+- Pricing: ~$0.05/second via API (~$0.50 for a 10-second clip)`;
 
 const WAN_EXPERTISE = `You are an expert on the Wan image-to-video AI model family (by Alibaba). Your knowledge is current as of March 2026.
 
@@ -320,9 +334,19 @@ A user wants to create an image-to-video prompt for ${modelName}. Their initial 
 
 Now write the BEST possible ${modelName} image-to-video prompt based on everything you know about what they want. Apply all your expertise about what works well with ${modelName}. Make it detailed, specific, and optimized for the best possible output. Fix any issues that would confuse ${modelName}.
 
+STRICT RULES FOR THE OUTPUT PROMPT:
+- Each prompt must be 50-150 words. Never exceed 200 words.
+- Each prompt must contain only ONE primary action. One subject + one main action + one camera move.
+- Front-load the key subject and action in the first 20-30 words.
+- Include at least 3 of the 5 layers: scene, camera, style/lighting, motion, audio.
+- Use specific action verbs and cinematic language.
+- Use positive descriptions only (never "no X" or "without X").
+- If the user's idea involves multiple steps, actions, or a sequence that would take more than ~10 seconds, you MUST split it into multiple clip prompts labeled "Clip 1:", "Clip 2:", "Clip 3:", etc. Each clip should describe one action that works in a single 10-second generation. Note that clips can be chained using Grok's "Extend from Frame" feature.
+- If it's a simple single-action idea, return just one prompt with no label.
+
 ${image ? `CRITICAL: The prompt MUST describe how the uploaded image should ANIMATE into video. Describe motion, camera movement, and changes — NOT dialogue or text overlays. If the user's original prompt contained text they wanted spoken, translate that intent into visual actions (e.g. a person's lips moving naturally, confident body language, hand gestures) that ${modelName} can actually render.` : ""}
 
-Return ONLY the final prompt, nothing else. No explanations, no labels, no quotes around it.`;
+Return ONLY the final prompt(s), nothing else. No explanations, no commentary, no quotes around it.`;
 
       const rewritten = await callKieAI(buildContent(textPrompt, image));
       return Response.json({ rewritten });

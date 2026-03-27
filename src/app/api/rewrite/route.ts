@@ -214,8 +214,8 @@ export async function POST(request: NextRequest) {
   try {
     const { model, action, prompt, questions, image } = await request.json();
 
-    if (!prompt || typeof prompt !== "string") {
-      return Response.json({ error: "Prompt is required" }, { status: 400 });
+    if (!prompt && !image) {
+      return Response.json({ error: "Please provide a prompt or upload an image" }, { status: 400 });
     }
     if (model !== "grok" && model !== "wan") {
       return Response.json({ error: "Model must be 'grok' or 'wan'" }, { status: 400 });
@@ -246,7 +246,25 @@ If you detect a mismatch between the image and the prompt (e.g. the prompt conta
       : "";
 
     if (action === "analyze") {
-      const textPrompt = `${expertise}
+      const hasPrompt = prompt && prompt.trim().length > 0;
+      const imageOnlyMode = !hasPrompt && image;
+
+      let analyzeIntro: string;
+      if (imageOnlyMode) {
+        analyzeIntro = `${expertise}
+
+A user wants to create an image-to-video prompt for ${modelName}. They uploaded a reference image (shown above) but did NOT provide any prompt text — they want help figuring out what to do with this image.
+
+Your job: Look at the image carefully and ask questions to understand what kind of video they want to create from it. Think creatively about what could be done with this image — what motions, effects, or stories could bring it to life?${qaContext}
+
+Focus your questions on:
+- What kind of motion/animation they envision (the subject moving, camera moving, environmental effects, etc.)
+- The mood or tone they want (dramatic, funny, cinematic, dreamy, etc.)
+- Camera behavior (slow push-in, static shot, orbit, etc.)
+- Any specific style or atmosphere
+${questions && questions.length > 0 ? "- Dig DEEPER based on their previous answers. Do NOT repeat questions already asked." : "- Start broad to understand their vision, then narrow down."}`;
+      } else {
+        analyzeIntro = `${expertise}
 
 A user wants to create an image-to-video prompt for ${modelName}. Their initial idea is:
 
@@ -259,7 +277,10 @@ Based on your expertise with ${modelName}, generate 3-5 clarifying questions tha
 - Creative choices that would significantly change the output
 ${image ? "- WHETHER THE PROMPT ACTUALLY MAKES SENSE FOR IMAGE-TO-VIDEO (if it contains dialogue, marketing text, or doesn't describe animation, your first question should address this and help the user understand what image-to-video prompts actually do)" : ""}
 
-${questions && questions.length > 0 ? "IMPORTANT: Do NOT repeat any questions already asked above. Ask NEW questions that dig deeper based on what we now know from their previous answers." : ""}
+${questions && questions.length > 0 ? "IMPORTANT: Do NOT repeat any questions already asked above. Ask NEW questions that dig deeper based on what we now know from their previous answers." : ""}`;
+      }
+
+      const textPrompt = `${analyzeIntro}
 
 CRITICAL QUESTION FORMAT RULES:
 1. Every question MUST be answerable with "Yes", "No", or a short typed answer.
@@ -304,33 +325,42 @@ Example: {"questions":["Should the camera slowly push in toward the subject?","D
       }
 
       // Post-process: fix any "A or B?" questions that slipped through
+      // Strategy: if a question contains " or " between two option-like phrases, rephrase it
       parsed.questions = parsed.questions.map((q: string) => {
-        // Split on ", or " or " or should " to find A-or-B patterns
-        // Use greedy match (.+) so we capture as much as possible before the last "or" split
-        const commaOrMatch = q.match(/^(.+),\s+or\s+(.+?\?)\s*$/i);
-        if (commaOrMatch) {
-          let firstPart = commaOrMatch[1].trim();
-          if (!firstPart.endsWith("?")) firstPart += "?";
-          return firstPart;
-        }
-        // "Should X or Y?" but NOT "Should X or Y be Z?" (only split when "or" introduces a separate clause)
-        const orShouldMatch = q.match(/^(.+)\s+or\s+(?:should|do|does|will|would|can|could)\s+(.+?\?)\s*$/i);
-        if (orShouldMatch) {
-          let firstPart = orShouldMatch[1].trim();
-          if (!firstPart.endsWith("?")) firstPart += "?";
-          return firstPart;
+        // Detect "or" presenting alternatives: "Should X, or Y?", "Should X or Y?", "Do you want X or Y?"
+        // But allow "or" in phrases like "one or two movements", "two or three seconds" (number ranges)
+        const hasOrAlternative = /\b(?:should|do|does|would|will|can|could)\b.+\bor\b.+\?/i.test(q)
+          && !/\b\d+\s+or\s+\d+\b/i.test(q); // exclude "2 or 3" number ranges
+
+        if (hasOrAlternative) {
+          // Take everything before " or " / ", or " and make it the question
+          const parts = q.split(/,?\s+or\s+/i);
+          if (parts.length >= 2) {
+            let firstPart = parts[0].trim();
+            // Make sure it ends with ?
+            if (!firstPart.endsWith("?")) firstPart += "?";
+            // Make sure it starts properly (capitalize)
+            firstPart = firstPart.charAt(0).toUpperCase() + firstPart.slice(1);
+            return firstPart;
+          }
         }
         return q;
       });
 
+      // Safety: filter out any questions that are too short (< 15 chars) as they were likely truncated
+      parsed.questions = parsed.questions.filter((q: string) => q.length >= 15);
+
       return Response.json({ questions: parsed.questions, readyToGenerate: parsed.readyToGenerate });
 
     } else if (action === "generate") {
+      const hasPrompt = prompt && prompt.trim().length > 0;
+      const promptIntro = hasPrompt
+        ? `A user wants to create an image-to-video prompt for ${modelName}. Their initial idea is:\n\n"${prompt}"${imageContext}${qaContext}`
+        : `A user wants to create an image-to-video prompt for ${modelName}. They uploaded a reference image (shown above) but did not write their own prompt. Based on the image and their answers to your questions, create the best possible prompt.${qaContext}`;
+
       const textPrompt = `${expertise}
 
-A user wants to create an image-to-video prompt for ${modelName}. Their initial idea is:
-
-"${prompt}"${imageContext}${qaContext}
+${promptIntro}
 
 Now write the BEST possible ${modelName} image-to-video prompt based on everything you know about what they want. Apply all your expertise about what works well with ${modelName}. Make it detailed, specific, and optimized for the best possible output. Fix any issues that would confuse ${modelName}.
 

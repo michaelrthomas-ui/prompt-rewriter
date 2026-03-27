@@ -102,9 +102,15 @@ export default function Home() {
   }, [pendingQuestions, loading, step]);
 
   async function handleAnalyze() {
-    if (!prompt.trim()) return;
+    if (!prompt.trim() && !imageDataUrl) return;
     setLoading(true);
-    setLoadingMessage(imageDataUrl ? "Analyzing your prompt and image..." : "Analyzing your prompt...");
+    setLoadingMessage(
+      !prompt.trim() && imageDataUrl
+        ? "Analyzing your image..."
+        : imageDataUrl
+        ? "Analyzing your prompt and image..."
+        : "Analyzing your prompt..."
+    );
     setError("");
     setPendingQuestions([]);
     setAnsweredQuestions([]);
@@ -399,13 +405,16 @@ export default function Home() {
             <div className="mb-4">
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 Describe what you want to create
+                {imageDataUrl && (
+                  <span className="text-slate-500 font-normal"> — or leave blank and we&apos;ll help you figure it out</span>
+                )}
               </label>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder={
                   imageDataUrl
-                    ? "Describe how you want this image to come alive as a video..."
+                    ? "Describe how you want this image to come alive as a video... or leave empty and let us ask you questions!"
                     : model === "grok"
                     ? "e.g. A dog running through a field of flowers..."
                     : "e.g. A woman walking down a city street at night..."
@@ -415,13 +424,25 @@ export default function Home() {
               />
             </div>
 
-            <button
-              onClick={handleAnalyze}
-              disabled={loading || !prompt.trim()}
-              className="w-full py-3 rounded-lg font-semibold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
-            >
-              {loading ? loadingMessage : "Let\u2019s Figure Out What You Want"}
-            </button>
+            {imageDataUrl && !prompt.trim() ? (
+              <div className="flex gap-3">
+                <button
+                  onClick={handleAnalyze}
+                  disabled={loading}
+                  className="flex-1 py-3 rounded-lg font-semibold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                >
+                  {loading ? loadingMessage : "Help Me Create a Prompt"}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleAnalyze}
+                disabled={loading || (!prompt.trim() && !imageDataUrl)}
+                className="w-full py-3 rounded-lg font-semibold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+              >
+                {loading ? loadingMessage : "Let\u2019s Figure Out What You Want"}
+              </button>
+            )}
           </>
         )}
 
@@ -431,11 +452,18 @@ export default function Home() {
             {/* Show image if uploaded */}
             <ImageThumbnail />
 
-            {/* Show original prompt */}
-            <div className="mb-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-              <span className="text-xs text-slate-500 uppercase tracking-wide">Your idea</span>
-              <p className="text-slate-300 mt-1">{prompt}</p>
-            </div>
+            {/* Show original prompt or image-only notice */}
+            {prompt.trim() ? (
+              <div className="mb-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                <span className="text-xs text-slate-500 uppercase tracking-wide">Your idea</span>
+                <p className="text-slate-300 mt-1">{prompt}</p>
+              </div>
+            ) : imageDataUrl ? (
+              <div className="mb-4 p-3 rounded-lg bg-indigo-900/30 border border-indigo-700/50">
+                <span className="text-xs text-indigo-400 uppercase tracking-wide">Image-only mode</span>
+                <p className="text-slate-300 mt-1">We&apos;re building a prompt from scratch based on your image and answers</p>
+              </div>
+            ) : null}
 
             {/* Ready to generate notification - sticky at top */}
             {readyToGenerate && (
@@ -598,10 +626,17 @@ export default function Home() {
             <ImageThumbnail />
 
             {/* Show original prompt */}
-            <div className="mb-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-              <span className="text-xs text-slate-500 uppercase tracking-wide">Your idea</span>
-              <p className="text-slate-300 mt-1">{prompt}</p>
-            </div>
+            {prompt.trim() ? (
+              <div className="mb-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                <span className="text-xs text-slate-500 uppercase tracking-wide">Your idea</span>
+                <p className="text-slate-300 mt-1">{prompt}</p>
+              </div>
+            ) : imageDataUrl ? (
+              <div className="mb-4 p-3 rounded-lg bg-indigo-900/30 border border-indigo-700/50">
+                <span className="text-xs text-indigo-400 uppercase tracking-wide">Built from your image</span>
+                <p className="text-slate-300 mt-1">Prompt created based on your image and answers</p>
+              </div>
+            ) : null}
 
             {/* Show Q&A summary */}
             {answeredQuestions.length > 0 && (

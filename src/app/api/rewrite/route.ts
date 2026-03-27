@@ -242,8 +242,10 @@ ${image ? "- WHETHER THE PROMPT ACTUALLY MAKES SENSE FOR IMAGE-TO-VIDEO (if it c
 
 ${questions && questions.length > 0 ? "IMPORTANT: Do NOT repeat any questions already asked above. Ask NEW questions that dig deeper based on what we now know from their previous answers." : ""}
 
+CRITICAL FORMATTING RULE: Every question MUST be answerable with a simple "Yes" or "No." Do NOT ask "A or B?" style questions. Instead of "Should it be fast or slow?" ask two separate questions: "Should the motion be fast/sudden?" (if No, we'll assume slow/smooth). Each question must make sense with just Yes or No as the answer.
+
 Return ONLY a JSON array of 5 question strings. No explanations, no markdown, no code blocks. Just the raw JSON array.
-Example: ["Would you like the camera to be moving during the shot?","Should the lighting be warm/golden rather than cool/blue?","Is this meant to be photorealistic rather than stylized?","Should there be motion blur to emphasize speed?","Do you want the subject centered in the frame?"]`;
+Example: ["Should the camera be moving during this shot?","Would you like warm golden lighting rather than cool blue?","Should this be photorealistic?","Do you want motion blur to emphasize speed?","Should the subject stay centered in the frame?"]`;
 
       const text = await callKieAI(buildContent(textPrompt, image));
 

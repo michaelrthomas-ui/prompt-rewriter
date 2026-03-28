@@ -223,7 +223,7 @@ function buildContent(textPrompt: string, imageDataUrl?: string): string | Messa
 
 export async function POST(request: NextRequest) {
   try {
-    const { model, action, prompt, questions, image, duration } = await request.json();
+    const { model, action, prompt, questions, image, duration, aspect } = await request.json();
 
     if (!prompt && !image) {
       return Response.json({ error: "Please provide a prompt or upload an image" }, { status: 400 });
@@ -233,6 +233,7 @@ export async function POST(request: NextRequest) {
     }
 
     const clipDuration = model === "grok" ? 8 : (duration === 10 ? 10 : 5);
+    const aspectRatio = model === "grok" ? (aspect === "9:16" ? "9:16" : "16:9") : null;
 
     const modelName = model === "grok" ? "Grok" : "Wan";
     const expertise = model === "grok" ? GROK_EXPERTISE : WAN_EXPERTISE;
@@ -327,7 +328,9 @@ ${image ? "- WHETHER THE PROMPT ACTUALLY MAKES SENSE FOR IMAGE-TO-VIDEO (if it c
 ${questions && questions.length > 0 ? "IMPORTANT: Do NOT repeat any questions already asked above. Ask NEW questions that dig deeper based on what we now know from their previous answers." : ""}`;
       }
 
-      const textPrompt = `${analyzeIntro}
+      const aspectContext = aspectRatio ? `\nThe video will be rendered in ${aspectRatio} format${aspectRatio === "9:16" ? " (vertical/portrait — like a phone screen, TikTok/Reels style)" : " (wide/landscape — cinematic widescreen)"}. Keep this in mind when asking about composition and camera movement.` : "";
+
+      const textPrompt = `${analyzeIntro}${aspectContext}
 
 CRITICAL QUESTION FORMAT RULES:
 1. Every question MUST be answerable with "Yes", "No", or a short typed answer.
@@ -435,6 +438,7 @@ ${promptIntro}
 Now write the BEST possible ${modelName} image-to-video prompt based on everything you know about what they want. Apply all your expertise about what works well with ${modelName}. Make it detailed, specific, and optimized for the best possible output. Fix any issues that would confuse ${modelName}.
 
 DURATION: The generated video will be ${clipDuration} seconds long. Design the prompt for EXACTLY ${clipDuration} seconds of action — don't describe more action than can realistically happen in ${clipDuration} seconds. ${clipDuration <= 5 ? "With only 5 seconds, keep it to ONE simple motion or change." : clipDuration <= 8 ? "With 8 seconds, you can fit one clear action with some buildup." : "With 10 seconds, you have room for one primary action with a setup and payoff."}
+${aspectRatio ? `\nASPECT RATIO: The video will be rendered in ${aspectRatio} format. ${aspectRatio === "16:9" ? "This is WIDE/LANDSCAPE — optimize for horizontal compositions, wide establishing shots, lateral camera movements (pans, tracking shots), and subjects positioned with horizontal breathing room. Think cinematic widescreen." : "This is VERTICAL/PORTRAIT (like a phone screen) — optimize for tall compositions, vertically-oriented subjects, upward/downward camera movements (tilts, crane shots), and tight framing on faces or full-body shots. Avoid wide landscape compositions that would feel cramped vertically. Think TikTok/Reels/Shorts framing."}` : ""}
 
 THE #1 RULE — PRESERVE THE USER'S CORE IDEA:
 The user's main concept/action MUST appear in the generated prompt. NEVER remove, water down, or replace the user's core idea with something safer or simpler. If they want "a fish swallows a man whole," the prompt MUST describe a fish swallowing a man whole. If they want something surreal, fantastical, or physically impossible, INCLUDE IT — your job is to express their idea in the best possible way for ${modelName}, NOT to decide their idea is too hard and replace it with something generic. Optimize HOW it's described, never WHAT is described.

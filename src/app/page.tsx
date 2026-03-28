@@ -31,6 +31,7 @@ export default function Home() {
   const [step, setStep] = useState<"input" | "questions" | "result">("input");
   const [readyToGenerate, setReadyToGenerate] = useState(false);
   const [wanDuration, setWanDuration] = useState<5 | 10>(5);
+  const [grokAspect, setGrokAspect] = useState<"16:9" | "9:16">("16:9");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -128,6 +129,7 @@ export default function Home() {
           prompt,
           image: imageDataUrl || undefined,
           duration: model === "wan" ? wanDuration : 8,
+          aspect: model === "grok" ? grokAspect : undefined,
         }),
       });
 
@@ -199,6 +201,7 @@ export default function Home() {
           questions: allQuestions,
           image: imageDataUrl || undefined,
           duration: model === "wan" ? wanDuration : 8,
+          aspect: model === "grok" ? grokAspect : undefined,
         }),
       });
 
@@ -254,6 +257,7 @@ export default function Home() {
           questions: allQuestions,
           image: imageDataUrl || undefined,
           duration: model === "wan" ? wanDuration : 8,
+          aspect: model === "grok" ? grokAspect : undefined,
         }),
       });
 
@@ -330,6 +334,7 @@ export default function Home() {
           questions: allQuestions,
           image: imageDataUrl || undefined,
           duration: model === "wan" ? wanDuration : 8,
+          aspect: model === "grok" ? grokAspect : undefined,
         }),
       });
 
@@ -427,9 +432,34 @@ export default function Home() {
           </div>
         )}
 
-        {/* Grok duration info */}
+        {/* Grok aspect ratio selector */}
         {model === "grok" && step === "input" && (
-          <p className="text-center text-slate-500 text-xs mb-6">Grok generates ~8 second clips</p>
+          <div className="flex flex-col items-center gap-2 mb-6">
+            <div className="flex gap-2 items-center">
+              <span className="text-slate-400 text-sm mr-2">Format:</span>
+              <button
+                onClick={() => setGrokAspect("16:9")}
+                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
+                  grokAspect === "16:9"
+                    ? "bg-indigo-600/80 text-white shadow-lg shadow-indigo-500/20"
+                    : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                }`}
+              >
+                16:9 Wide
+              </button>
+              <button
+                onClick={() => setGrokAspect("9:16")}
+                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
+                  grokAspect === "9:16"
+                    ? "bg-indigo-600/80 text-white shadow-lg shadow-indigo-500/20"
+                    : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                }`}
+              >
+                9:16 Vertical
+              </button>
+            </div>
+            <p className="text-slate-500 text-xs">Grok generates ~8 second clips</p>
+          </div>
         )}
 
         {/* Step 1: Prompt input */}

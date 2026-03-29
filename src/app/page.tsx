@@ -838,7 +838,10 @@ export default function Home() {
                     Drop an image here or click to upload
                   </p>
                   <p className="text-slate-500 text-sm mt-1">
-                    Upload the image you want to animate into a video — this is required so the AI can tailor your prompt
+                    Upload the image you want to animate into a video
+                  </p>
+                  <p className="text-slate-600 text-xs mt-2">
+                    JPG, PNG, or WebP — max 20MB
                   </p>
                   <input
                     ref={fileInputRef}

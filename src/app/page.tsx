@@ -108,7 +108,7 @@ export default function Home() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const lastSuggestInputRef = useRef<{ image: string; prompt: string } | null>(null);
   const [copied, setCopied] = useState(false);
-  const [promptCheck, setPromptCheck] = useState<{ status: "good" | "warning"; message: string } | null>(null);
+  const [promptCheck, setPromptCheck] = useState<{ status: "good" | "warning"; message: string; suggestion?: string | null } | null>(null);
   const [checkingPrompt, setCheckingPrompt] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -956,15 +956,32 @@ export default function Home() {
                   </div>
                 )}
                 {promptCheck && (
-                  <div className={`mt-2 p-3 rounded-lg text-sm flex gap-2 ${
+                  <div className={`mt-2 p-3 rounded-lg text-sm ${
                     promptCheck.status === "good"
                       ? "bg-emerald-900/40 border border-emerald-700/60 text-emerald-200"
                       : "bg-amber-900/40 border border-amber-700/60 text-amber-200"
                   }`}>
-                    <span className={`mt-0.5 shrink-0 ${promptCheck.status === "good" ? "text-emerald-400" : "text-amber-400"}`}>
-                      {promptCheck.status === "good" ? "\u2705" : "\u26A0\uFE0F"}
-                    </span>
-                    <span>{promptCheck.message}</span>
+                    <div className="flex gap-2">
+                      <span className={`mt-0.5 shrink-0 ${promptCheck.status === "good" ? "text-emerald-400" : "text-amber-400"}`}>
+                        {promptCheck.status === "good" ? "\u2705" : "\u26A0\uFE0F"}
+                      </span>
+                      <span>{promptCheck.message}</span>
+                    </div>
+                    {promptCheck.suggestion && (
+                      <div className="mt-3 pt-3 border-t border-amber-700/40">
+                        <span className="text-xs text-amber-400 uppercase tracking-wide font-semibold block mb-2">Suggested rewrite</span>
+                        <p className="text-amber-100 text-sm mb-3">{promptCheck.suggestion}</p>
+                        <button
+                          onClick={() => {
+                            setPrompt(promptCheck.suggestion!);
+                            setPromptCheck(null);
+                          }}
+                          className="px-4 py-2 rounded-lg text-sm font-semibold bg-amber-600 text-white hover:bg-amber-500 transition-colors cursor-pointer"
+                        >
+                          Use this instead
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 {promptWarning && !promptCheck && (

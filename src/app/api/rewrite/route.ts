@@ -668,11 +668,14 @@ THINGS ${modelName} CAN DO:
 - Lighting changes, atmospheric effects
 - Audio generation (ambient sounds, effects)
 
-Return ONLY a JSON object (no markdown, no code blocks):
-If the prompt is good: {"status":"good","message":"Brief encouraging feedback about why this will work well"}
-If there are issues: {"status":"warning","message":"Friendly explanation of what won't work and a suggestion for what to try instead"}
+IMPORTANT — IMAGE-TO-VIDEO LOGIC:
+When the user's prompt mentions something that isn't in the image (like "a monster" when there's no monster), this does NOT automatically mean the prompt is bad. ${modelName} animates FROM the image, so elements not in the image need to EMERGE, APPEAR, or ENTER the scene. Your suggested rewrite should make this work — describe HOW the missing element appears (e.g. "a shadow grows and morphs into a monster emerging from behind the trees").
 
-Keep the message to 1-3 sentences. Be helpful, not discouraging.`;
+Return ONLY a JSON object (no markdown, no code blocks):
+If the prompt is good as-is: {"status":"good","message":"Brief encouraging feedback about why this will work well"}
+If there are issues: {"status":"warning","message":"Short explanation of the issue","suggestion":"A rewritten version of their prompt that PRESERVES their creative idea but makes it work with the image and ${modelName}. Write it as a complete, ready-to-use prompt (30-80 words). Make elements that aren't in the image emerge/appear naturally."}
+
+Keep the message to 1-2 sentences. Be helpful, not discouraging.`;
 
       const text = await callKieAI(buildContent(textPrompt, image));
       try {
@@ -681,9 +684,10 @@ Keep the message to 1-3 sentences. Be helpful, not discouraging.`;
         return Response.json({
           status: parsed.status || "good",
           message: parsed.message || "Your prompt looks good!",
+          suggestion: parsed.suggestion || null,
         });
       } catch {
-        return Response.json({ status: "good", message: "Your prompt looks good!" });
+        return Response.json({ status: "good", message: "Your prompt looks good!", suggestion: null });
       }
 
     } else if (action === "suggest") {

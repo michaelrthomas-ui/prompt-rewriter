@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
@@ -508,6 +508,26 @@ export default function Home() {
     setShowTemplates(false);
   }
 
+  const promptWarning = useMemo(() => {
+    const text = prompt.toLowerCase().trim();
+    if (!text) return null;
+
+    const warnings: { pattern: RegExp; message: string }[] = [
+      { pattern: /\b(speaks?|says?|talks?|narrates?|recites?|reads?\s*(the|out|aloud))\b.*\b(text|words?|quote|lines?|sentence|speech|dialogue)\b/, message: "These AI video models can't make characters speak or say specific words. They generate silent video clips — no speech or dialogue." },
+      { pattern: /\b(speaks?|says?|talks?|tells?)\b.*[""\u201c\u201d']/, message: "These AI video models can't make characters speak specific words. They generate silent video clips with motion only." },
+      { pattern: /\bread(s|ing)?\s+(the\s+)?(text|words?|sign|caption|subtitle|message|quote|letter)\b/, message: "These AI models can't make characters read text or interact with written words in the image." },
+      { pattern: /\b(text|words?|letters?|caption|subtitle)\s+(appear|fade|animate|move|fly|scroll|type)\b/, message: "These AI models can't generate or animate text overlays. They work with visual motion only." },
+      { pattern: /\b(sing|singing|sings|song|music|plays?\s+music)\b/, message: "These AI models generate silent video — they can't add singing, music, or audio." },
+      { pattern: /\b(multiple\s+scenes?|scene\s+change|cut\s+to|transition\s+to|next\s+scene)\b/, message: "These models create a single continuous clip — they can't do scene changes or transitions between different shots." },
+      { pattern: /\b(teleport|transform\s+into|morph\s+into|shape\s*shift|turn\s+into\s+a)\b/, message: "Major transformations and morphing effects are beyond what these models handle well. Stick to natural, realistic motion." },
+    ];
+
+    for (const w of warnings) {
+      if (w.pattern.test(text)) return w.message;
+    }
+    return null;
+  }, [prompt]);
+
   function handleLoadFromHistory(entry: HistoryEntry) {
     setModel(entry.model);
     setRewritten(entry.optimizedPrompt);
@@ -908,6 +928,12 @@ export default function Home() {
                   rows={4}
                   className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y"
                 />
+                {promptWarning && (
+                  <div className="mt-2 p-3 rounded-lg bg-amber-900/40 border border-amber-700/60 text-amber-200 text-sm flex gap-2">
+                    <span className="text-amber-400 mt-0.5 shrink-0">&#9888;</span>
+                    <span>{promptWarning}</span>
+                  </div>
+                )}
               </div>
             )}
 

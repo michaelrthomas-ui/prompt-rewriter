@@ -278,7 +278,9 @@ If you detect a mismatch between the image and the prompt (e.g. the prompt conta
 
 A user wants to create an image-to-video prompt for ${modelName}. They uploaded a reference image (shown above) but did NOT write any prompt — they want YOUR help to figure out what to do with this image. Think of this like a game of "Guess Who" — you're narrowing down exactly what they envision through yes/no questions.
 
-LOOK AT THE IMAGE CAREFULLY. Describe to yourself what you see — who/what is in it, the setting, the mood, what's interesting about it. Then ask questions that help narrow down their creative vision.${qaContext}
+LOOK AT THE IMAGE CAREFULLY. Describe to yourself what you see — who/what is in it, the setting, the mood, what's interesting about it. Then ask questions that help narrow down their creative vision.
+
+TEXT IN IMAGE CHECK: Look carefully — does the image contain any visible text, words, quotes, captions, or speech bubbles? If YES, you MUST ask early (Round 1 or 2): "Your image has text in it — should a voice narrate or read that text aloud in the video?" This is important because ${modelName} may auto-generate a voiceover of visible text. If the user says NO, the generated prompt must include "no voice, no narration, no speech" in the audio layer. If YES, include "a voice reads the on-screen text aloud" in the audio layer.${qaContext}
 
 ${questionCount === 0 ? `ROUND 1 — START BROAD & CREATIVE:
 This is the FIRST round of questions. You know NOTHING about what they want yet. Start with the big creative questions:
@@ -325,6 +327,8 @@ Do NOT repeat ANY previously asked questions. Each round must ask NEW questions 
 A user wants to create an image-to-video prompt for ${modelName}. Their initial idea is:
 
 "${prompt}"${imageContext}${qaContext}
+
+TEXT IN IMAGE CHECK: Look carefully at the uploaded image — does it contain any visible text, words, quotes, captions, or speech bubbles? If YES, one of your questions MUST be: "Your image has text in it — should a voice narrate or read that text aloud in the video?" This is important because ${modelName} may auto-generate a voiceover of visible text. If the user says NO, the generated prompt must include "no voice, no narration, no speech" in the audio layer. If YES, include "a voice reads the on-screen text aloud" in the audio layer.
 
 Based on your expertise with ${modelName}, generate 3-5 clarifying questions that will help you understand what they REALLY want. The user can answer Yes, No, or type a custom response. Focus on:
 - Ambiguities in their description that could lead to unexpected results
@@ -462,7 +466,13 @@ FORMATTING RULES FOR THE OUTPUT PROMPT:
 
 COMPLEXITY CHECK: If the user's idea involves WAY too much action for a single ${clipDuration}-second clip, add a note at the very end on a new line starting with "⚠️ TIP:" suggesting the action might be a lot for ${clipDuration} seconds, and the user could split this into separate clip prompts for better results. Do NOT mention "Extend from Frame" or any specific tool features. But STILL write the single prompt above the tip — let the user decide if they want to split it.
 
-${image ? `CRITICAL: The prompt MUST describe how the uploaded image should ANIMATE into video. Describe motion, camera movement, and changes — NOT dialogue or text overlays. If the user's original prompt contained text they wanted spoken, translate that intent into visual actions (e.g. a person's lips moving naturally, confident body language, hand gestures) that ${modelName} can actually render.` : ""}
+${image ? `CRITICAL: The prompt MUST describe how the uploaded image should ANIMATE into video. Describe motion, camera movement, and changes.
+
+TEXT/VOICE HANDLING: Check the Q&A answers above — if the user was asked about narrating text in the image:
+- If they said YES to voice narration: include "a voice reads the on-screen text aloud" or similar in the audio layer
+- If they said NO to voice narration: include "no voice, no narration, no speech — ambient sounds only" in the audio layer
+- If they weren't asked (no text in image): handle audio normally with ambient sounds
+This is important because ${modelName} may auto-generate voiceovers of visible text in the source image.` : ""}
 
 Return ONLY a JSON object with this exact format (no markdown, no code blocks):
 {"prompt":"the optimized prompt text here","summary":"1-2 sentence summary of what was improved from the original idea","warning":"only include this field if the user's original prompt asked for something the AI model cannot do well"}

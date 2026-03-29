@@ -84,7 +84,7 @@ export default function Home() {
   const supabase = createClient();
   const router = useRouter();
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
-  const [model, setModel] = useState<Model>("grok");
+  // model is now auto-selected based on duration and content
   const [prompt, setPrompt] = useState("");
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [imageName, setImageName] = useState("");
@@ -98,9 +98,9 @@ export default function Home() {
   const [error, setError] = useState("");
   const [step, setStep] = useState<"input" | "questions" | "result">("input");
   const [readyToGenerate, setReadyToGenerate] = useState(false);
-  const [wanDuration, setWanDuration] = useState<5 | 10>(5);
-  const [grokAspect, setGrokAspect] = useState<AspectRatio>("16:9");
-  const [wanAspect, setWanAspect] = useState<AspectRatio>("16:9");
+  const [durationChoice, setDurationChoice] = useState<"short" | "long">("long");
+  const [aspect, setAspect] = useState<AspectRatio>("16:9");
+  const [selectedModel, setSelectedModel] = useState<Model | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -211,12 +211,12 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model,
+          model: effectiveModel,
           action: "suggest",
           prompt: currentInput.prompt,
           image: imageDataUrl,
-          duration: model === "wan" ? wanDuration : 8,
-          aspect: model === "grok" ? grokAspect : wanAspect,
+          duration: effectiveDuration,
+          aspect,
         }),
       });
       if (res.ok) {
@@ -241,12 +241,12 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model,
+          model: effectiveModel,
           action: "check",
           prompt: prompt.trim(),
           image: imageDataUrl,
-          duration: model === "wan" ? wanDuration : 8,
-          aspect: model === "grok" ? grokAspect : wanAspect,
+          duration: effectiveDuration,
+          aspect,
         }),
       });
       if (res.ok) {
@@ -272,7 +272,10 @@ export default function Home() {
     return "";
   }
 
-  const currentAspect = model === "grok" ? grokAspect : wanAspect;
+  // For short duration, always Wan. For long, model is auto-selected (default grok until API decides)
+  const effectiveModel: Model = durationChoice === "short" ? "wan" : (selectedModel || "grok");
+  const effectiveDuration = durationChoice === "short" ? 5 : (effectiveModel === "grok" ? 8 : 10);
+  const currentAspect = aspect;
 
   // Scroll to bottom when new content appears
   useEffect(() => {
@@ -304,11 +307,11 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model,
+          model: effectiveModel,
           action: "analyze",
           prompt,
           image: imageDataUrl || undefined,
-          duration: model === "wan" ? wanDuration : 8,
+          duration: effectiveDuration,
           aspect: currentAspect,
         }),
       });
@@ -375,12 +378,12 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model,
+          model: effectiveModel,
           action: "analyze",
           prompt,
           questions: allQuestions,
           image: imageDataUrl || undefined,
-          duration: model === "wan" ? wanDuration : 8,
+          duration: effectiveDuration,
           aspect: currentAspect,
         }),
       });
@@ -402,7 +405,7 @@ export default function Home() {
       setLoading(false);
       setLoadingMessage("");
     }
-  }, [model, prompt, imageDataUrl, wanDuration, currentAspect]);
+  }, [effectiveModel, prompt, imageDataUrl, effectiveDuration, currentAspect]);
 
   // Auto-continue: when all questions are answered and AI isn't ready yet, auto-fetch more
   const autoFetchTriggered = useRef(false);
@@ -425,13 +428,13 @@ export default function Home() {
       .from("prompt_history")
       .insert({
         user_id: user.id,
-        model,
+        model: effectiveModel,
         original_prompt: originalUserPrompt || prompt,
         optimized_prompt: optimizedPrompt,
         summary: sum,
         warning: warn,
         aspect: currentAspect,
-        duration: model === "wan" ? wanDuration : 8,
+        duration: effectiveDuration,
       })
       .select()
       .single();
@@ -453,12 +456,12 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model,
+          model: effectiveModel,
           action: "generate",
           prompt,
           questions: allQuestions,
           image: imageDataUrl || undefined,
-          duration: model === "wan" ? wanDuration : 8,
+          duration: effectiveDuration,
           aspect: currentAspect,
         }),
       });
@@ -550,15 +553,14 @@ export default function Home() {
   }, [prompt]);
 
   function handleLoadFromHistory(entry: HistoryEntry) {
-    setModel(entry.model);
+    setSelectedModel(entry.model);
+    if (entry.duration === 5) setDurationChoice("short");
+    else setDurationChoice("long");
     setRewritten(entry.optimizedPrompt);
     setSummary(entry.summary);
     setPromptIssueWarning(entry.warning);
     setPrompt(entry.originalPrompt);
-    if (entry.aspect) {
-      if (entry.model === "grok") setGrokAspect(entry.aspect);
-      else setWanAspect(entry.aspect);
-    }
+    if (entry.aspect) setAspect(entry.aspect);
     setStep("result");
     setShowHistory(false);
   }
@@ -614,12 +616,12 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model,
+          model: effectiveModel,
           action: "split",
           prompt: cleanPrompt,
           questions: allQuestions,
           image: imageDataUrl || undefined,
-          duration: model === "wan" ? wanDuration : 8,
+          duration: effectiveDuration,
           aspect: currentAspect,
         }),
       });
@@ -730,7 +732,7 @@ export default function Home() {
               </div>
               <div className="flex gap-3">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">4</span>
-                <p className="text-slate-400"><span className="text-slate-200 font-medium">Get your prompt</span> — we&apos;ll generate an optimized prompt you can copy and paste directly into {model === "grok" ? "Grok" : "Wan"} to create your video.</p>
+                <p className="text-slate-400"><span className="text-slate-200 font-medium">Get your prompt</span> — we&apos;ll generate an optimized prompt you can copy and paste directly into the AI video tool to create your video.</p>
               </div>
             </div>
           </div>
@@ -796,65 +798,39 @@ export default function Home() {
           </div>
         )}
 
-        {/* Model selector */}
-        <div className="flex gap-3 mb-6 justify-center">
-          <button
-            onClick={() => { if (step === "input") setModel("grok"); }}
-            className={`px-6 py-3 rounded-lg font-semibold text-lg transition-all cursor-pointer ${
-              model === "grok"
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
-                : "bg-slate-800 text-slate-400 hover:bg-slate-700"
-            } ${step !== "input" ? "opacity-60 cursor-default" : ""}`}
-          >
-            Grok
-          </button>
-          <button
-            onClick={() => { if (step === "input") setModel("wan"); }}
-            className={`px-6 py-3 rounded-lg font-semibold text-lg transition-all cursor-pointer ${
-              model === "wan"
-                ? "bg-purple-600 text-white shadow-lg shadow-purple-500/30"
-                : "bg-slate-800 text-slate-400 hover:bg-slate-700"
-            } ${step !== "input" ? "opacity-60 cursor-default" : ""}`}
-          >
-            Wan
-          </button>
-        </div>
-
-        {/* Wan duration + aspect ratio selector */}
-        {model === "wan" && step === "input" && (
-          <div className="flex flex-col items-center gap-3 mb-6">
+        {/* Video settings */}
+        {step === "input" && (
+          <div className="flex flex-col items-center gap-4 mb-6">
             <div className="flex gap-2 items-center">
               <span className="text-slate-400 text-sm mr-2">Duration:</span>
               <button
-                onClick={() => setWanDuration(5)}
+                onClick={() => setDurationChoice("short")}
                 className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-                  wanDuration === 5
-                    ? "bg-purple-600/80 text-white shadow-lg shadow-purple-500/20"
+                  durationChoice === "short"
+                    ? "bg-indigo-600/80 text-white shadow-lg shadow-indigo-500/20"
                     : "bg-slate-800 text-slate-400 hover:bg-slate-700"
                 }`}
               >
                 5 seconds
               </button>
               <button
-                onClick={() => setWanDuration(10)}
+                onClick={() => setDurationChoice("long")}
                 className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-                  wanDuration === 10
-                    ? "bg-purple-600/80 text-white shadow-lg shadow-purple-500/20"
+                  durationChoice === "long"
+                    ? "bg-indigo-600/80 text-white shadow-lg shadow-indigo-500/20"
                     : "bg-slate-800 text-slate-400 hover:bg-slate-700"
                 }`}
               >
-                10 seconds
+                8–10 seconds
               </button>
             </div>
-            <AspectSelector value={wanAspect} onChange={setWanAspect} variant="purple" />
-          </div>
-        )}
-
-        {/* Grok aspect ratio selector */}
-        {model === "grok" && step === "input" && (
-          <div className="flex flex-col items-center gap-2 mb-6">
-            <AspectSelector value={grokAspect} onChange={setGrokAspect} variant="indigo" />
-            <p className="text-slate-500 text-xs">Grok generates ~8 second clips</p>
+            {durationChoice === "short" && (
+              <p className="text-slate-500 text-xs">5-second clips use Wan</p>
+            )}
+            {durationChoice === "long" && (
+              <p className="text-slate-500 text-xs">We&apos;ll pick the best AI model for your prompt</p>
+            )}
+            <AspectSelector value={aspect} onChange={setAspect} variant="indigo" />
           </div>
         )}
 
@@ -946,7 +922,7 @@ export default function Home() {
                     ) : (
                       <>
                         <span className="text-lg">&#128269;</span>
-                        Check if this will work with {model === "grok" ? "Grok" : "Wan"}
+                        Check if this prompt will work
                       </>
                     )}
                   </button>
@@ -1330,6 +1306,11 @@ export default function Home() {
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium text-emerald-400">
                   Your Optimized Prompt
+                  <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                    effectiveModel === "grok" ? "bg-indigo-600/30 text-indigo-400" : "bg-purple-600/30 text-purple-400"
+                  }`}>
+                    for {effectiveModel === "grok" ? "Grok" : "Wan"} · {effectiveDuration}s
+                  </span>
                 </label>
                 <div className="flex items-center gap-3">
                   {/* Word count */}

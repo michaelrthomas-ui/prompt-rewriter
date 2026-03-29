@@ -443,46 +443,6 @@ export default function Home() {
     }
   }
 
-  async function handleSurpriseMe() {
-    setLoading(true);
-    setLoadingMessage("Cooking up something creative...");
-    setError("");
-    setPendingQuestions([]);
-    setAnsweredQuestions([]);
-    setSummary(null);
-    setScores(null);
-
-    try {
-      const res = await fetch("/api/rewrite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          action: "surprise",
-          prompt: prompt.trim() || "surprise",
-          duration: model === "wan" ? wanDuration : 8,
-          aspect: currentAspect,
-          image: imageDataUrl || undefined,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to generate surprise prompt");
-      }
-
-      const data = await res.json();
-      setRewritten(data.rewritten);
-      setPrompt("");
-      setStep("result");
-      addToHistory(data.rewritten, `Random ${data.category || "creative"} prompt generated`, null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setLoading(false);
-      setLoadingMessage("");
-    }
-  }
 
   async function handleKeepRefining() {
     const allQuestions = collectAllQuestions();
@@ -727,7 +687,7 @@ export default function Home() {
               </div>
               <div className="flex gap-3">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">3</span>
-                <p className="text-slate-400"><span className="text-slate-200 font-medium">Describe how it should move</span> (optional) — tell us what motion or action you want. Not sure? Leave it blank and we&apos;ll ask you questions, or click <span className="text-slate-300">Surprise Me</span> for an instant creative idea.</p>
+                <p className="text-slate-400"><span className="text-slate-200 font-medium">Describe how it should move</span> (optional) — tell us what motion or action you want. Not sure? Leave it blank and we&apos;ll ask you questions, or click <span className="text-slate-300">Get AI suggestions</span> for ideas tailored to your image.</p>
               </div>
               <div className="flex gap-3">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">4</span>
@@ -999,14 +959,6 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Surprise me button */}
-            <button
-              onClick={handleSurpriseMe}
-              disabled={loading || !imageDataUrl}
-              className="w-full mt-3 py-2 rounded-lg font-semibold text-sm bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 disabled:opacity-50 transition-all cursor-pointer border border-slate-700/50"
-            >
-              {loading ? loadingMessage : !imageDataUrl ? "Upload an image first" : prompt.trim() ? "Surprise Me — From Prompt & Image" : "Surprise Me — From Image"}
-            </button>
           </>
         )}
 

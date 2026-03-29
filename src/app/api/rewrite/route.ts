@@ -739,22 +739,33 @@ ${image ? `They uploaded the reference image shown above. This is the ACTUAL ima
 STEP 1 — CAREFULLY DESCRIBE WHAT YOU SEE IN THE IMAGE:
 Before doing anything else, study the image and list (to yourself) every visible element: people (or lack of people), objects, setting, lighting, mood, text overlays, etc. Be extremely precise — if you only see boots but no person's face or body, note "boots visible, no person visible." If there's text in the image, note exactly what it says.
 
-STEP 2 — COMPARE THE PROMPT TO THE IMAGE:
-Go through every noun and subject in the user's prompt and check if it exists in the image:
-- "the man" → Is there actually a man visible? Or just boots/hands/partial view?
-- Any subject mentioned → Is it in the image or does it need to emerge/appear?
+STEP 2 — DECIDE IF THE PROMPT IS ACHIEVABLE:
+THE #1 RULE: New elements CAN appear, emerge, enter, or arise in the scene — even if they are NOT in the original image. This is a CORE FEATURE of image-to-video AI. Examples that are ALL VALID and should get status "good":
+- "women in bikinis emerge from the water" (even if no women are in the image — they EMERGE)
+- "a dragon flies overhead" (even if no dragon is in the image — it APPEARS)
+- "a man walks into frame" (even if no man is in the image — he ENTERS)
+- "zombies rise from the ground" (creative new elements entering the scene)
+- "butterflies swarm around the flowers" (new elements appearing)
+
+ONLY flag as a warning if the prompt asks for something the AI model TECHNICALLY CANNOT DO:
+- Generating new legible text on screen (garbled)
+- Fine temporal control ("at exactly 2 seconds, X happens")
+- Contradicting what's PHYSICALLY in the image in a way that breaks it (e.g., "the red car" when the car is clearly blue — but "a red car drives past" is fine because it's a NEW car entering)
+
+DO NOT warn about:
+- New people, animals, creatures, or objects appearing/emerging/entering — this is NORMAL and EXPECTED
+- Creative or fantastical scenarios — the user's creativity should be encouraged
+- Things not currently visible in the image — they can appear in the video
 
 IMPORTANT — TEXT AND VOICE DISTINCTION:
-- "reads the text" / "speaks the words" / "narrates" = the user wants someone to READ ALOUD or NARRATE text that's in the image. This IS possible — these AI models can generate a person appearing/emerging AND speaking, plus voice audio. This is a VALID and ACHIEVABLE request.
-- "text appears" / "write text" / "show words" / "display caption" = the user wants NEW text generated visually on screen. This will NOT work — AI video models render new text as garbled.
-- If the image contains text and the user wants it read aloud, even by "a man" who isn't in the image — that IS doable. The AI can introduce a person who emerges into the scene and speaks/narrates. Treat this as a creative prompt that needs the right phrasing, NOT as impossible.
+- "reads the text" / "speaks the words" / "narrates" = VALID — AI models can do voice/speech with lip-sync
+- "text appears" / "write text" / "show words" / "display caption" = WARNING — new text renders as garbled
 
 STEP 3 — WRITE YOUR RESPONSE:
-- AI video models CAN introduce new elements not in the image — people, creatures, objects can EMERGE, APPEAR, or ENTER the scene
-- If the user mentions a person not in the image (like "the man reads the text"), don't say it's impossible. Instead, help phrase it so the person APPEARS in the scene (e.g. "a man steps into frame by the campfire and begins speaking")
-- If they want existing text READ ALOUD, that's absolutely fine — include voice narration in the audio layer and describe the person speaking
-- If they want NEW text to appear visually on screen, warn that it will render as garbled
-- Your suggestion must work WITH the image — reference what's visible and describe how new elements enter the scene` : ""}
+- If the prompt describes new elements entering the scene, that's GOOD — mark it as status "good" with encouraging feedback
+- Only use status "warning" for things the AI model literally cannot do (garbled text, etc.)
+- If you're unsure whether something will work, default to "good" — let the user try it
+- Your suggestion (if needed) must work WITH the image — reference what's visible and describe how new elements enter the scene` : ""}
 
 Analyze their prompt and determine:
 1. Is the prompt clear enough for an AI video model to understand what to generate?

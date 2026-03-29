@@ -898,9 +898,9 @@ export default function Home() {
             {/* Prompt input — only shown after image upload, hidden when viewing suggestions */}
             {imageDataUrl && !showTemplates && (
               <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-lg font-semibold text-white mb-2">
                   Got an idea? Describe it here
-                  <span className="ml-1.5 text-xs font-normal text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full">Optional</span>
+                  <span className="ml-2 text-sm font-normal text-indigo-400 bg-indigo-500/15 px-2.5 py-1 rounded-full align-middle">Optional</span>
                 </label>
                 <textarea
                   value={prompt}

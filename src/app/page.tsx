@@ -934,26 +934,24 @@ export default function Home() {
                   rows={4}
                   className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y"
                 />
-                {prompt.trim() && imageDataUrl && (
-                  <div className="mt-2">
-                    <button
-                      onClick={checkPromptFeasibility}
-                      disabled={checkingPrompt}
-                      className="text-sm text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                    >
-                      {checkingPrompt ? (
-                        <>
-                          <span className="inline-block w-3.5 h-3.5 border-2 border-slate-500 border-t-indigo-400 rounded-full animate-spin" />
-                          Checking your prompt...
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-base">&#128269;</span>
-                          Check if this will work with {model === "grok" ? "Grok" : "Wan"}
-                        </>
-                      )}
-                    </button>
-                  </div>
+                {prompt.trim() && imageDataUrl && !promptCheck && (
+                  <button
+                    onClick={checkPromptFeasibility}
+                    disabled={checkingPrompt}
+                    className="mt-3 w-full py-3 px-4 rounded-lg font-semibold text-sm bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:from-cyan-500 hover:to-blue-500 disabled:opacity-70 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    {checkingPrompt ? (
+                      <>
+                        <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Checking your prompt...
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-lg">&#128269;</span>
+                        Check if this will work with {model === "grok" ? "Grok" : "Wan"}
+                      </>
+                    )}
+                  </button>
                 )}
                 {promptCheck && (
                   <div className={`mt-2 p-3 rounded-lg text-sm ${
@@ -999,7 +997,16 @@ export default function Home() {
                 <div className="space-y-3">
                   {imageDataUrl && (
                     <p className="text-center text-sm text-slate-400">
-                      {prompt.trim() ? "Ready? Choose how to proceed" : "Choose how you\u2019d like to create your prompt"}
+                      {prompt.trim() && !promptCheck
+                        ? "Check your prompt first, then choose how to proceed"
+                        : prompt.trim()
+                        ? "Ready? Choose how to proceed"
+                        : "Choose how you\u2019d like to create your prompt"}
+                    </p>
+                  )}
+                  {prompt.trim() && !promptCheck && imageDataUrl && (
+                    <p className="text-center text-xs text-amber-400/70">
+                      Please check your prompt above before continuing
                     </p>
                   )}
                   <div className="grid grid-cols-2 gap-3">
@@ -1012,7 +1019,7 @@ export default function Home() {
                           fetchImageSuggestions();
                         }
                       }}
-                      disabled={loading || loadingSuggestions || !imageDataUrl}
+                      disabled={loading || loadingSuggestions || !imageDataUrl || (!!prompt.trim() && !promptCheck)}
                       className="py-4 px-4 rounded-lg font-semibold text-sm bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
                     >
                       {loadingSuggestions ? "Analyzing your image..." : "Give Me Prompt Ideas"}
@@ -1020,7 +1027,7 @@ export default function Home() {
                     </button>
                     <button
                       onClick={handleAnalyze}
-                      disabled={loading || !imageDataUrl}
+                      disabled={loading || !imageDataUrl || (!!prompt.trim() && !promptCheck)}
                       className="py-4 px-4 rounded-lg font-semibold text-sm bg-gradient-to-r from-slate-700 to-slate-600 text-white hover:from-slate-600 hover:to-slate-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer border border-slate-600/50"
                     >
                       {loading ? loadingMessage : "Guide Me With Questions"}

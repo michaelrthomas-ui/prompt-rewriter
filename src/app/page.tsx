@@ -662,34 +662,6 @@ export default function Home() {
       </div>
     ) : null;
 
-  // Aspect ratio selector component (shared between Grok and Wan)
-  const AspectSelector = ({ value, onChange, variant }: { value: AspectRatio; onChange: (v: AspectRatio) => void; variant: "indigo" | "purple" }) => {
-    const activeClass = variant === "indigo"
-      ? "bg-indigo-600/80 text-white shadow-lg shadow-indigo-500/20"
-      : "bg-purple-600/80 text-white shadow-lg shadow-purple-500/20";
-    return (
-      <div className="flex gap-2 items-center">
-        <span className="text-slate-400 text-sm mr-2">Format:</span>
-        <button
-          onClick={() => onChange("16:9")}
-          className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-            value === "16:9" ? activeClass : "bg-slate-800 text-slate-400 hover:bg-slate-700"
-          }`}
-        >
-          16:9 Wide
-        </button>
-        <button
-          onClick={() => onChange("9:16")}
-          className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-            value === "9:16" ? activeClass : "bg-slate-800 text-slate-400 hover:bg-slate-700"
-          }`}
-        >
-          9:16 Vertical
-        </button>
-      </div>
-    );
-  };
-
   return (
     <div className="flex flex-col items-center min-h-screen px-4 py-12">
       <div className="w-full max-w-2xl">
@@ -798,41 +770,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Video settings */}
-        {step === "input" && (
-          <div className="flex flex-col items-center gap-4 mb-6">
-            <div className="flex gap-2 items-center">
-              <span className="text-slate-400 text-sm mr-2">Duration:</span>
-              <button
-                onClick={() => setDurationChoice("short")}
-                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-                  durationChoice === "short"
-                    ? "bg-indigo-600/80 text-white shadow-lg shadow-indigo-500/20"
-                    : "bg-slate-800 text-slate-400 hover:bg-slate-700"
-                }`}
-              >
-                5 seconds
-              </button>
-              <button
-                onClick={() => setDurationChoice("long")}
-                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-                  durationChoice === "long"
-                    ? "bg-indigo-600/80 text-white shadow-lg shadow-indigo-500/20"
-                    : "bg-slate-800 text-slate-400 hover:bg-slate-700"
-                }`}
-              >
-                8–10 seconds
-              </button>
-            </div>
-            {durationChoice === "short" && (
-              <p className="text-slate-500 text-xs">5-second clips use Wan</p>
-            )}
-            {durationChoice === "long" && (
-              <p className="text-slate-500 text-xs">We&apos;ll pick the best AI model for your prompt</p>
-            )}
-            <AspectSelector value={aspect} onChange={setAspect} variant="indigo" />
-          </div>
-        )}
+        {/* Video settings moved below image/prompt area */}
 
         {/* Step 1: Prompt input */}
         {step === "input" && (
@@ -962,6 +900,60 @@ export default function Home() {
                     <span>{promptWarning}</span>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Video settings — shown after image upload */}
+            {imageDataUrl && !showTemplates && (
+              <div className="mb-4 p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                <div className="flex flex-wrap items-center justify-center gap-4">
+                  <div className="flex gap-2 items-center">
+                    <span className="text-slate-400 text-sm mr-1">Duration:</span>
+                    <button
+                      onClick={() => setDurationChoice("short")}
+                      className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all cursor-pointer ${
+                        durationChoice === "short"
+                          ? "bg-indigo-600/80 text-white"
+                          : "bg-slate-700 text-slate-400 hover:bg-slate-600"
+                      }`}
+                    >
+                      5 seconds
+                    </button>
+                    <button
+                      onClick={() => setDurationChoice("long")}
+                      className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all cursor-pointer ${
+                        durationChoice === "long"
+                          ? "bg-indigo-600/80 text-white"
+                          : "bg-slate-700 text-slate-400 hover:bg-slate-600"
+                      }`}
+                    >
+                      8–10 seconds
+                    </button>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <span className="text-slate-400 text-sm mr-1">Format:</span>
+                    <button
+                      onClick={() => setAspect("16:9")}
+                      className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all cursor-pointer ${
+                        aspect === "16:9"
+                          ? "bg-indigo-600/80 text-white"
+                          : "bg-slate-700 text-slate-400 hover:bg-slate-600"
+                      }`}
+                    >
+                      16:9 Wide
+                    </button>
+                    <button
+                      onClick={() => setAspect("9:16")}
+                      className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all cursor-pointer ${
+                        aspect === "9:16"
+                          ? "bg-indigo-600/80 text-white"
+                          : "bg-slate-700 text-slate-400 hover:bg-slate-600"
+                      }`}
+                    >
+                      9:16 Vertical
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 

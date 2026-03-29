@@ -630,19 +630,34 @@ Return ONLY a JSON object (no markdown):
         return Response.json({ error: "Image is required for suggestions" }, { status: 400 });
       }
 
+      const modelLimitations = model === "grok"
+        ? `IMPORTANT ${modelName} LIMITATIONS — every suggestion MUST follow these rules:
+- Only ONE simple motion/action per suggestion. No complex multi-step sequences.
+- Keep camera movements simple and achievable (slow pan, gentle push-in, static shot with subject motion). NO dramatic crane shots, rapid zooms, or complex aerial moves.
+- ${modelName} handles subtle, grounded motions best — gentle swaying, slow camera drifts, natural movements.
+- Avoid overly ambitious suggestions that would require multiple camera moves or rapid scene changes.
+- Each suggestion must be something ${modelName} can realistically produce well in ${clipDuration} seconds.`
+        : `IMPORTANT ${modelName} LIMITATIONS — every suggestion MUST follow these rules:
+- Only ONE primary motion/action per suggestion.
+- Keep motions realistic and achievable for a ${clipDuration}-second clip.
+- ${modelName} works best with clear, direct motion descriptions.
+- Avoid overly complex physics or multiple independent moving subjects.`;
+
       const textPrompt = `${expertise}
 
 Look at this uploaded image carefully. Analyze what's in it — the subject, setting, mood, colors, composition, and any notable details.
 
 Now suggest 6 different creative ways this image could be animated into a ${clipDuration}-second video using ${modelName}. Each suggestion should be a DIFFERENT type of motion/animation style.
 
+${modelLimitations}
+
 ${aspectRatio ? `ASPECT RATIO: ${aspectRatio} format.` : ""}
 
 For each suggestion, provide:
 - A short category label (2-3 words max)
-- A brief description (1-2 sentences) of what would happen in the video, specific to THIS image
+- A brief prompt description (1-2 sentences) describing the motion/animation, specific to THIS image. Write it as a prompt the user can paste directly — describe what moves, how the camera behaves, and the mood.
 
-Be specific to what's actually IN the image. Don't give generic suggestions — reference the actual subject, setting, and details you see.
+Be specific to what's actually IN the image. Don't give generic suggestions — reference the actual subject, setting, and details you see. Every suggestion must be something ${modelName} can realistically execute well.
 
 Return ONLY a JSON array (no markdown, no code blocks):
 [{"category":"label","prompt":"description"},{"category":"label","prompt":"description"}]`;

@@ -974,7 +974,7 @@ export default function Home() {
                         <button
                           onClick={() => {
                             setPrompt(promptCheck.suggestion!);
-                            setPromptCheck(null);
+                            setPromptCheck({ status: "good", message: "Using the suggested rewrite — you're good to go!" });
                           }}
                           className="px-4 py-2 rounded-lg text-sm font-semibold bg-amber-600 text-white hover:bg-amber-500 transition-colors cursor-pointer"
                         >

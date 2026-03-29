@@ -20,21 +20,13 @@ interface PendingQuestion {
   useCustom: boolean;
 }
 
-interface PromptScores {
-  specificity: number;
-  camera: number;
-  motion: number;
-  lighting: number;
-  audio: number;
-}
-
 interface HistoryEntry {
   id: string;
   model: Model;
   originalPrompt: string;
   optimizedPrompt: string;
   summary: string | null;
-  scores: PromptScores | null;
+  warning: string | null;
   timestamp: number;
   aspect?: AspectRatio;
   duration?: number;
@@ -68,7 +60,7 @@ interface HistoryRow {
   original_prompt: string;
   optimized_prompt: string;
   summary: string | null;
-  scores: PromptScores | null;
+  warning: string | null;
   aspect: string | null;
   duration: number | null;
   created_at: string;
@@ -81,7 +73,7 @@ function rowToEntry(row: HistoryRow): HistoryEntry {
     originalPrompt: row.original_prompt,
     optimizedPrompt: row.optimized_prompt,
     summary: row.summary,
-    scores: row.scores,
+    warning: row.warning || null,
     timestamp: new Date(row.created_at).getTime(),
     aspect: row.aspect as AspectRatio | undefined,
     duration: row.duration ?? undefined,
@@ -100,7 +92,7 @@ export default function Home() {
   const [pendingQuestions, setPendingQuestions] = useState<PendingQuestion[]>([]);
   const [rewritten, setRewritten] = useState("");
   const [summary, setSummary] = useState<string | null>(null);
-  const [scores, setScores] = useState<PromptScores | null>(null);
+  const [promptIssueWarning, setPromptIssueWarning] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [error, setError] = useState("");
@@ -271,7 +263,7 @@ export default function Home() {
     setAnsweredQuestions([]);
     setRewritten("");
     setSummary(null);
-    setScores(null);
+    setPromptIssueWarning(null);
     setReadyToGenerate(false);
 
     try {
@@ -394,7 +386,7 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allAnswered, loading, step, readyToGenerate]);
 
-  async function addToHistory(optimizedPrompt: string, sum: string | null, sc: PromptScores | null) {
+  async function addToHistory(optimizedPrompt: string, sum: string | null, warn: string | null) {
     if (!user) return;
     const { data } = await supabase
       .from("prompt_history")
@@ -404,7 +396,7 @@ export default function Home() {
         original_prompt: prompt,
         optimized_prompt: optimizedPrompt,
         summary: sum,
-        scores: sc,
+        warning: warn,
         aspect: currentAspect,
         duration: model === "wan" ? wanDuration : 8,
       })
@@ -446,10 +438,10 @@ export default function Home() {
       const data = await res.json();
       setRewritten(data.rewritten);
       setSummary(data.summary || null);
-      setScores(data.scores || null);
+      setPromptIssueWarning(data.warning || null);
       setAnsweredQuestions(allQuestions);
       setStep("result");
-      addToHistory(data.rewritten, data.summary || null, data.scores || null);
+      addToHistory(data.rewritten, data.summary || null, data.warning || null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -473,7 +465,7 @@ export default function Home() {
     setPendingQuestions([]);
     setRewritten("");
     setSummary(null);
-    setScores(null);
+    setPromptIssueWarning(null);
     setError("");
     setReadyToGenerate(false);
     setStep("input");
@@ -486,7 +478,7 @@ export default function Home() {
     setPrompt(suggestionPrompt);
     setShowTemplates(false);
     setSummary(null);
-    setScores(null);
+    setPromptIssueWarning(null);
     setStep("result");
     addToHistory(suggestionPrompt, "Used AI suggestion", null);
   }
@@ -532,7 +524,7 @@ export default function Home() {
     setModel(entry.model);
     setRewritten(entry.optimizedPrompt);
     setSummary(entry.summary);
-    setScores(entry.scores);
+    setPromptIssueWarning(entry.warning);
     setPrompt(entry.originalPrompt);
     if (entry.aspect) {
       if (entry.model === "grok") setGrokAspect(entry.aspect);
@@ -611,7 +603,7 @@ export default function Home() {
       const data = await res.json();
       setRewritten(data.rewritten);
       setSummary(null);
-      setScores(null);
+      setPromptIssueWarning(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -621,23 +613,6 @@ export default function Home() {
   }
 
   // Score bar component
-  const ScoreBar = ({ label, value }: { label: string; value: number }) => (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-slate-400 w-20 shrink-0">{label}</span>
-      <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all ${
-            value >= 8 ? "bg-emerald-500" : value >= 5 ? "bg-amber-500" : "bg-red-500"
-          }`}
-          style={{ width: `${value * 10}%` }}
-        />
-      </div>
-      <span className={`text-xs font-bold w-6 text-right ${
-        value >= 8 ? "text-emerald-400" : value >= 5 ? "text-amber-400" : "text-red-400"
-      }`}>{value}</span>
-    </div>
-  );
-
   // Shared image thumbnail component
   const ImageThumbnail = () =>
     imageDataUrl ? (
@@ -1288,28 +1263,13 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Prompt Scores */}
-            {scores && (
-              <div className="mt-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                <span className="text-xs text-slate-500 uppercase tracking-wide mb-2 block">Prompt Quality Score</span>
-                <div className="space-y-1.5">
-                  <ScoreBar label="Specificity" value={scores.specificity} />
-                  <ScoreBar label="Camera" value={scores.camera} />
-                  <ScoreBar label="Motion" value={scores.motion} />
-                  <ScoreBar label="Lighting" value={scores.lighting} />
-                  <ScoreBar label="Audio" value={scores.audio} />
-                </div>
-                <div className="mt-2 pt-2 border-t border-slate-700/50 flex items-center justify-between">
-                  <span className="text-xs text-slate-400">Overall</span>
-                  <span className={`text-sm font-bold ${
-                    (scores.specificity + scores.camera + scores.motion + scores.lighting + scores.audio) / 5 >= 8
-                      ? "text-emerald-400"
-                      : (scores.specificity + scores.camera + scores.motion + scores.lighting + scores.audio) / 5 >= 5
-                      ? "text-amber-400"
-                      : "text-red-400"
-                  }`}>
-                    {((scores.specificity + scores.camera + scores.motion + scores.lighting + scores.audio) / 5).toFixed(1)}/10
-                  </span>
+            {/* Warning about original prompt issues */}
+            {promptIssueWarning && (
+              <div className="mt-3 p-3 rounded-lg bg-amber-900/40 border border-amber-700/60 flex gap-2">
+                <span className="text-amber-400 mt-0.5 shrink-0 text-lg">&#9888;</span>
+                <div>
+                  <span className="text-xs text-amber-400 uppercase tracking-wide font-semibold block mb-1">Heads up about your original prompt</span>
+                  <p className="text-amber-200 text-sm">{promptIssueWarning}</p>
                 </div>
               </div>
             )}
@@ -1334,7 +1294,7 @@ export default function Home() {
                 onClick={() => {
                   setRewritten("");
                   setSummary(null);
-                  setScores(null);
+                  setPromptIssueWarning(null);
                   setPendingQuestions([]);
                   setStep("questions");
                   autoFetchTriggered.current = false;

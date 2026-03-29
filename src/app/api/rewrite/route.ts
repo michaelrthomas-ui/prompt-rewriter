@@ -465,17 +465,19 @@ COMPLEXITY CHECK: If the user's idea involves WAY too much action for a single $
 ${image ? `CRITICAL: The prompt MUST describe how the uploaded image should ANIMATE into video. Describe motion, camera movement, and changes — NOT dialogue or text overlays. If the user's original prompt contained text they wanted spoken, translate that intent into visual actions (e.g. a person's lips moving naturally, confident body language, hand gestures) that ${modelName} can actually render.` : ""}
 
 Return ONLY a JSON object with this exact format (no markdown, no code blocks):
-{"prompt":"the optimized prompt text here","summary":"1-2 sentence summary of what was improved from the original idea","scores":{"specificity":8,"camera":7,"motion":9,"lighting":6,"audio":5}}
+{"prompt":"the optimized prompt text here","summary":"1-2 sentence summary of what was improved from the original idea","warning":"only include this field if the user's original prompt asked for something the AI model cannot do well"}
 
 RULES FOR THE JSON:
 - "prompt" contains the full optimized prompt text. If there's a complexity tip, add it on a new line starting with "⚠️ TIP:" INSIDE the prompt field.
 - "summary" is 1-2 sentences explaining what you improved, enhanced, or added compared to the user's original idea. Be specific about what was changed. If there was no original prompt (image-only mode), describe the creative choices you made.
-- "scores" rates the prompt quality on 5 dimensions, each 1-10:
-  - specificity: How specific and detailed is the scene description?
-  - camera: How well-defined is the camera work?
-  - motion: How clearly is the motion/action described?
-  - lighting: How well is the lighting/atmosphere specified?
-  - audio: How detailed is the audio direction?`;
+- "warning" — ONLY include this field if the user's original idea asked for something ${modelName} can't do or struggles with. Examples of things that need a warning:
+  - Requesting legible text to appear, be written, or be read in the video (AI video models render text as garbled/illegible)
+  - Requesting specific words to appear on screen as text overlays or captions
+  - Requesting multiple scene changes or transitions (these models make a single continuous clip)
+  - Requesting detailed hand/finger close-ups (often renders with distorted fingers)
+  - Requesting large crowds with individual detail (faces blur and distort)
+  - Requesting major shape-shifting or transformation effects
+  If the user's prompt IS achievable, do NOT include the warning field at all. The warning should be a short, friendly 1-2 sentence explanation of what can't be done and what you changed it to instead.`;
 
       const text = await callKieAI(buildContent(textPrompt, image));
 
@@ -486,7 +488,7 @@ RULES FOR THE JSON:
         return Response.json({
           rewritten: parsed.prompt || text,
           summary: parsed.summary || null,
-          scores: parsed.scores || null,
+          warning: parsed.warning || null,
         });
       } catch {
         // Fallback: treat as plain text (backward compatible)

@@ -51,6 +51,17 @@ const TEMPLATES = [
   { category: "Abstract Art", prompt: "Liquid mercury and molten gold colliding in slow motion, forming intricate organic patterns" },
 ];
 
+const IMAGE_TEMPLATES = [
+  { category: "Gentle Motion", prompt: "Subtle natural movement — a soft breeze, gentle swaying, light flickering, or fabric rippling" },
+  { category: "Cinematic Push-In", prompt: "Slow cinematic camera push toward the subject, with shallow depth of field and ambient particles" },
+  { category: "Dramatic Reveal", prompt: "Camera slowly pulls back to reveal the full scene, with dramatic lighting shifting from shadow to glow" },
+  { category: "Come to Life", prompt: "The subject comes alive — eyes blink, a smile forms, hair moves in the wind, natural lifelike motion" },
+  { category: "Weather Effect", prompt: "Rain begins to fall softly, or snow drifts down, or fog rolls in — adding atmosphere and mood" },
+  { category: "Time-Lapse", prompt: "Time accelerates — clouds race across the sky, shadows shift, light changes from day to golden hour" },
+  { category: "Parallax Depth", prompt: "Foreground and background move at different speeds creating a 3D parallax depth effect" },
+  { category: "Epic Action", prompt: "Sudden dramatic motion — an explosion, a leap, a burst of energy, or fast dynamic movement" },
+];
+
 function getWordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
@@ -900,23 +911,47 @@ export default function Home() {
                 onClick={() => setShowTemplates(!showTemplates)}
                 className="text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer transition-colors"
               >
-                {showTemplates ? "Hide Templates" : "Need inspiration? Try a template"}
+                {showTemplates
+                  ? "Hide suggestions"
+                  : imageDataUrl
+                  ? "Not sure what to type? See suggestions for your image"
+                  : "Need inspiration? Try a template"}
               </button>
             </div>
 
             {/* Templates grid */}
             {showTemplates && (
-              <div className="mb-4 grid grid-cols-2 gap-2">
-                {TEMPLATES.map((t, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleUseTemplate(t.prompt)}
-                    className="p-3 rounded-lg bg-slate-800 border border-slate-700/50 hover:border-indigo-500/50 hover:bg-slate-800/80 text-left transition-all cursor-pointer group"
-                  >
-                    <span className="text-xs text-indigo-400 font-medium">{t.category}</span>
-                    <p className="text-slate-400 text-xs mt-1 line-clamp-2 group-hover:text-slate-300">{t.prompt}</p>
-                  </button>
-                ))}
+              <div className="mb-4">
+                {imageDataUrl && (
+                  <>
+                    <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Describe how your image should animate</p>
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                      {IMAGE_TEMPLATES.map((t, i) => (
+                        <button
+                          key={`img-${i}`}
+                          onClick={() => handleUseTemplate(t.prompt)}
+                          className="p-3 rounded-lg bg-slate-800 border border-slate-700/50 hover:border-indigo-500/50 hover:bg-slate-800/80 text-left transition-all cursor-pointer group"
+                        >
+                          <span className="text-xs text-indigo-400 font-medium">{t.category}</span>
+                          <p className="text-slate-400 text-xs mt-1 line-clamp-2 group-hover:text-slate-300">{t.prompt}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+                <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">{imageDataUrl ? "Or start from a scene idea" : "Pick a starting point"}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {TEMPLATES.map((t, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleUseTemplate(t.prompt)}
+                      className="p-3 rounded-lg bg-slate-800 border border-slate-700/50 hover:border-indigo-500/50 hover:bg-slate-800/80 text-left transition-all cursor-pointer group"
+                    >
+                      <span className="text-xs text-indigo-400 font-medium">{t.category}</span>
+                      <p className="text-slate-400 text-xs mt-1 line-clamp-2 group-hover:text-slate-300">{t.prompt}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 

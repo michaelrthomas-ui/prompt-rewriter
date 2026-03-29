@@ -717,7 +717,7 @@ export default function Home() {
   const ImageThumbnail = () =>
     imageDataUrl ? (
       <div className="mb-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-        <span className="text-xs text-slate-500 uppercase tracking-wide">Reference image</span>
+        <span className="text-xs text-slate-400 uppercase tracking-wide">Reference image</span>
         <div className="mt-2 relative w-full max-w-[200px]">
           <Image
             src={imageDataUrl}
@@ -750,7 +750,7 @@ export default function Home() {
         <h1 className="text-3xl font-bold text-center mb-2">
           AI Image Magic Prompt Creation Tool
         </h1>
-        <p className="text-center text-slate-400 mb-4">
+        <p className="text-center text-slate-300 mb-4">
           We&apos;ll figure out exactly what you want, then craft the perfect prompt
         </p>
 
@@ -761,15 +761,15 @@ export default function Home() {
             <div className="grid grid-cols-1 gap-3 text-sm">
               <div className="flex gap-3">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">1</span>
-                <p className="text-slate-400"><span className="text-slate-200 font-medium">Upload your image</span> — this is the image that will be animated into a video. The AI analyzes it to make sure your prompt matches what&apos;s in the image.</p>
+                <p className="text-slate-300"><span className="text-white font-medium">Upload your image</span> — this is the image that will be animated into a video. The AI analyzes it to make sure your prompt matches what&apos;s in the image.</p>
               </div>
               <div className="flex gap-3">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">2</span>
-                <p className="text-slate-400"><span className="text-slate-200 font-medium">Describe how it should move</span> (optional) — tell us what motion or action you want. Not sure? Leave it blank and we&apos;ll ask you questions, or click <span className="text-slate-300">Get AI suggestions</span> for ideas tailored to your image.</p>
+                <p className="text-slate-300"><span className="text-white font-medium">Describe how it should move</span> (optional) — tell us what motion or action you want. Not sure? Leave it blank and we&apos;ll ask you questions, or click <span className="text-white">Get AI suggestions</span> for ideas tailored to your image.</p>
               </div>
               <div className="flex gap-3">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">3</span>
-                <p className="text-slate-400"><span className="text-slate-200 font-medium">Get your prompt</span> — we&apos;ll generate an optimized prompt and automatically pick the best AI model (Grok or Wan) and duration for your idea.</p>
+                <p className="text-slate-300"><span className="text-white font-medium">Get your prompt</span> — we&apos;ll generate an optimized prompt and automatically pick the best AI model (Grok or Wan) and duration for your idea.</p>
               </div>
             </div>
           </div>
@@ -780,7 +780,7 @@ export default function Home() {
           <div className="flex justify-center mb-4">
             <button
               onClick={() => setShowHistory(!showHistory)}
-              className="text-sm text-slate-400 hover:text-slate-200 cursor-pointer transition-colors"
+              className="text-sm text-slate-300 hover:text-white cursor-pointer transition-colors"
             >
               {showHistory ? "Hide History" : `View History (${history.length})`}
             </button>
@@ -791,7 +791,7 @@ export default function Home() {
         {showHistory && step === "input" && (
           <div className="mb-6 p-4 rounded-lg bg-slate-800/50 border border-slate-700/50 max-h-80 overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs text-slate-500 uppercase tracking-wide">Recent Prompts</span>
+              <span className="text-xs text-slate-400 uppercase tracking-wide">Recent Prompts</span>
               <button
                 onClick={handleClearHistory}
                 className="text-xs text-red-400 hover:text-red-300 cursor-pointer"
@@ -819,7 +819,7 @@ export default function Home() {
                       </div>
                       <p className="text-slate-300 text-sm line-clamp-2">{entry.optimizedPrompt}</p>
                       {entry.originalPrompt && (
-                        <p className="text-slate-500 text-xs mt-1 truncate">From: &ldquo;{entry.originalPrompt}&rdquo;</p>
+                        <p className="text-slate-400 text-xs mt-1 truncate">From: &ldquo;{entry.originalPrompt}&rdquo;</p>
                       )}
                     </div>
                     <button
@@ -852,13 +852,13 @@ export default function Home() {
                   onClick={() => fileInputRef.current?.click()}
                   className="w-full rounded-lg bg-slate-800 border-2 border-dashed border-slate-600 px-4 py-8 text-center cursor-pointer hover:border-indigo-500 hover:bg-slate-800/80 transition-all"
                 >
-                  <p className="text-slate-400">
+                  <p className="text-slate-200">
                     Drop an image here or click to upload
                   </p>
-                  <p className="text-slate-500 text-sm mt-1">
+                  <p className="text-slate-400 text-sm mt-1">
                     Upload the image you want to animate into a video
                   </p>
-                  <p className="text-slate-600 text-xs mt-2">
+                  <p className="text-slate-500 text-xs mt-2">
                     JPG, PNG, or WebP — max 20MB
                   </p>
                   <input
@@ -907,7 +907,7 @@ export default function Home() {
                   onChange={(e) => { setPrompt(e.target.value); setPromptCheck(null); }}
                   placeholder="Example: &quot;the dog turns its head and barks&quot; — or skip this and we'll help you figure it out!"
                   rows={3}
-                  className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y"
+                  className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y"
                 />
                 <p className="mt-3 text-base text-white font-medium text-center">
                   &#x1F447; No idea what to write? No problem — just skip this and pick an option below
@@ -980,7 +980,7 @@ export default function Home() {
               <div className="mb-4 p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
                 <div className="flex items-center justify-center gap-4">
                   <div className="flex gap-2 items-center">
-                    <span className="text-slate-400 text-sm mr-1">Format:</span>
+                    <span className="text-slate-300 text-sm mr-1">Format:</span>
                     <button
                       onClick={() => setAspect("16:9")}
                       className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all cursor-pointer ${
@@ -1015,7 +1015,7 @@ export default function Home() {
                       <p className="text-base font-semibold text-white">
                         Next step: choose how to build your prompt
                       </p>
-                      <p className="text-sm text-slate-400 mt-1">Pick one of these options to continue</p>
+                      <p className="text-sm text-slate-300 mt-1">Pick one of these options to continue</p>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <button
@@ -1067,7 +1067,7 @@ export default function Home() {
                 {/* AI-generated suggestions grid */}
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-slate-500 uppercase tracking-wide">Prompt ideas for your image</p>
+                    <p className="text-xs text-slate-400 uppercase tracking-wide">Prompt ideas for your image</p>
                     <button
                       onClick={() => setShowTemplates(false)}
                       className="text-xs text-slate-500 hover:text-slate-300 cursor-pointer transition-colors"
@@ -1133,7 +1133,7 @@ export default function Home() {
             {/* Show original prompt or image-only notice */}
             {prompt.trim() ? (
               <div className="mb-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                <span className="text-xs text-slate-500 uppercase tracking-wide">Your idea</span>
+                <span className="text-xs text-slate-400 uppercase tracking-wide">Your idea</span>
                 <p className="text-slate-300 mt-1">{prompt}</p>
               </div>
             ) : imageDataUrl ? (
@@ -1170,7 +1170,7 @@ export default function Home() {
             {/* Show previously answered questions */}
             {answeredQuestions.length > 0 && (
               <div className="mb-4 space-y-2">
-                <span className="text-xs text-slate-500 uppercase tracking-wide">Previous answers ({answeredQuestions.length})</span>
+                <span className="text-xs text-slate-400 uppercase tracking-wide">Previous answers ({answeredQuestions.length})</span>
                 {answeredQuestions.map((q, i) => (
                   <div key={`answered-${i}`} className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/30">
                     <span className={`px-2 py-0.5 rounded text-xs font-bold shrink-0 mt-0.5 ${
@@ -1181,7 +1181,7 @@ export default function Home() {
                       {q.answer.length <= 3 ? q.answer.toUpperCase() : "CUSTOM"}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <span className="text-slate-400 text-sm">{q.question}</span>
+                      <span className="text-slate-200 text-sm">{q.question}</span>
                       {q.answer.length > 3 && (
                         <p className="text-slate-300 text-sm mt-1 italic">&ldquo;{q.answer}&rdquo;</p>
                       )}
@@ -1194,7 +1194,7 @@ export default function Home() {
             {/* Current questions */}
             {pendingQuestions.length > 0 && (
               <div className="space-y-3 mb-6">
-                <span className="text-xs text-slate-500 uppercase tracking-wide">
+                <span className="text-xs text-slate-400 uppercase tracking-wide">
                   {readyToGenerate ? "Optional: fine-tune further" : "Help us understand what you want"}
                 </span>
                 {pendingQuestions.map((q, i) => (
@@ -1242,7 +1242,7 @@ export default function Home() {
                         onChange={(e) => handleCustomText(i, e.target.value)}
                         placeholder="Type your answer..."
                         autoFocus
-                        className="mt-3 w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        className="mt-3 w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                       />
                     )}
                   </div>
@@ -1281,14 +1281,14 @@ export default function Home() {
             )}
 
             {loading && (
-              <div className="text-center py-4 text-slate-400 animate-pulse">
+              <div className="text-center py-4 text-slate-300 animate-pulse">
                 {loadingMessage}
               </div>
             )}
 
             <button
               onClick={handleStartOver}
-              className="w-full mt-3 py-2 text-sm text-slate-500 hover:text-slate-300 cursor-pointer transition-colors"
+              className="w-full mt-3 py-2 text-sm text-slate-400 hover:text-white cursor-pointer transition-colors"
             >
               Start Over
             </button>
@@ -1306,8 +1306,8 @@ export default function Home() {
             {/* Before / After comparison */}
             {(originalUserPrompt || prompt.trim()) && (
               <div className="mb-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                <span className="text-xs text-slate-500 uppercase tracking-wide">Your original idea</span>
-                <p className="text-slate-400 mt-1 text-sm">{originalUserPrompt || prompt}</p>
+                <span className="text-xs text-slate-400 uppercase tracking-wide">Your original idea</span>
+                <p className="text-slate-300 mt-1 text-sm">{originalUserPrompt || prompt}</p>
               </div>
             )}
             {!prompt.trim() && imageDataUrl && (
@@ -1328,7 +1328,7 @@ export default function Home() {
             {/* Show Q&A summary (collapsed) */}
             {answeredQuestions.length > 0 && (
               <details className="mb-4">
-                <summary className="text-xs text-slate-500 uppercase tracking-wide cursor-pointer hover:text-slate-400">
+                <summary className="text-xs text-slate-400 uppercase tracking-wide cursor-pointer hover:text-slate-200">
                   Show Q&A ({answeredQuestions.length} questions answered)
                 </summary>
                 <div className="mt-2 space-y-2">
@@ -1342,7 +1342,7 @@ export default function Home() {
                         {q.answer.length <= 3 ? q.answer.toUpperCase() : "CUSTOM"}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <span className="text-slate-400 text-sm">{q.question}</span>
+                        <span className="text-slate-200 text-sm">{q.question}</span>
                         {q.answer.length > 3 && (
                           <p className="text-slate-300 text-sm mt-1 italic">&ldquo;{q.answer}&rdquo;</p>
                         )}

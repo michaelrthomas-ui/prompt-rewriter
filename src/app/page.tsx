@@ -577,9 +577,38 @@ export default function Home() {
     setShowTemplates(false);
   }
 
-  const promptWarning = useMemo(() => {
+  // Content restriction check — blocks prohibited content before it reaches the API
+  const contentRestriction = useMemo(() => {
     const text = prompt.toLowerCase().trim();
     if (!text) return null;
+
+    const restrictedPatterns: { pattern: RegExp; message: string }[] = [
+      // Nudity / sexual content
+      { pattern: /\b(naked|nude|nudity|topless|bottomless|strip(s|ping|ped)?|undress(es|ing|ed)?|disrobe|unclothed|bare\s*(breast|chest|body|skin|butt|ass)|exposed\s*(body|breast|skin)|no\s*cloth(es|ing))\b/, message: "Adult or explicit content is not allowed. Both Grok and Wan AI video models block nudity and sexual content." },
+      { pattern: /\b(nsfw|xxx|porn(o|ographic|ography)?|erotic(a)?|hentai|lewd|sexually\s+explicit)\b/, message: "Adult or explicit content is not allowed. Both Grok and Wan AI video models block nudity and sexual content." },
+      { pattern: /\b(sex(ual)?\s+(act|scene|position)|intercourse|orgasm|masturbat|genital|penis|vagina|phallic)\b/, message: "Sexually explicit content is not allowed. These AI video models will reject this type of prompt." },
+      // Suggestive body exposure
+      { pattern: /\b(bikini\s*(strip|remov|com(e|ing)\s*off)|takes?\s*off\s*(clothes|shirt|dress|bikini|bra|panties)|cloth(es|ing)\s*(fall|slip|com(e|ing))\s*off)\b/, message: "Content involving undressing or removing clothing is not allowed by the AI video models." },
+      // Violence / gore
+      { pattern: /\b(dismember|decapitat|mutilat|disembowel|gore|gory|graphic\s*violence|blood(y)?\s*(murder|kill|massacre|slaughter))\b/, message: "Graphic violence and gore are not allowed. These AI video models block violent and disturbing content." },
+      // Self-harm
+      { pattern: /\b(suicide|self[\s-]*harm|cut(s|ting)?\s*(wrist|themselves|herself|himself)|slit(s|ting)?\s*(wrist|throat))\b/, message: "Content depicting self-harm is not allowed and is blocked by the AI video models." },
+      // Minors in any suggestive context
+      { pattern: /\b(child|kid|minor|underage|teen(age)?|young\s*(girl|boy))\b.*\b(naked|nude|sexy|seduc|kiss|intimate|bath(e|ing)|shower(ing)?|undress)\b/, message: "Any suggestive content involving minors is strictly prohibited and illegal." },
+      { pattern: /\b(naked|nude|sexy|seduc|intimate|undress)\b.*\b(child|kid|minor|underage|teen(age)?|young\s*(girl|boy))\b/, message: "Any suggestive content involving minors is strictly prohibited and illegal." },
+      // Deepfakes / real people in sexual context
+      { pattern: /\b(deepfake|nudif(y|ied|ication)|fake\s*(nude|naked|porn))\b/, message: "Creating deepfakes or fake explicit content of real people is prohibited and illegal." },
+    ];
+
+    for (const r of restrictedPatterns) {
+      if (r.pattern.test(text)) return r.message;
+    }
+    return null;
+  }, [prompt]);
+
+  const promptWarning = useMemo(() => {
+    const text = prompt.toLowerCase().trim();
+    if (!text || contentRestriction) return null;
 
     const warnings: { pattern: RegExp; message: string }[] = [
       { pattern: /\b(text|words?|letters?|caption|subtitle)\s+(appear|fade|animate|move|fly|scroll|type)\b/, message: "These AI models can't generate new readable text on screen — any new text will come out distorted." },
@@ -591,7 +620,7 @@ export default function Home() {
       if (w.pattern.test(text)) return w.message;
     }
     return null;
-  }, [prompt]);
+  }, [prompt, contentRestriction]);
 
   function handleLoadFromHistory(entry: HistoryEntry) {
     setResultModel(entry.model);
@@ -882,7 +911,7 @@ export default function Home() {
                   rows={4}
                   className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y"
                 />
-                {prompt.trim() && imageDataUrl && !promptCheck && (
+                {prompt.trim() && imageDataUrl && !promptCheck && !contentRestriction && (
                   <button
                     onClick={checkPromptFeasibility}
                     disabled={checkingPrompt}
@@ -930,7 +959,13 @@ export default function Home() {
                     )}
                   </div>
                 )}
-                {promptWarning && !promptCheck && (
+                {contentRestriction && (
+                  <div className="mt-2 p-3 rounded-lg bg-red-900/50 border border-red-700/60 text-red-200 text-sm flex gap-2">
+                    <span className="text-red-400 mt-0.5 shrink-0">&#9940;</span>
+                    <span>{contentRestriction}</span>
+                  </div>
+                )}
+                {promptWarning && !promptCheck && !contentRestriction && (
                   <div className="mt-2 p-3 rounded-lg bg-amber-900/40 border border-amber-700/60 text-amber-200 text-sm flex gap-2">
                     <span className="text-amber-400 mt-0.5 shrink-0">&#9888;</span>
                     <span>{promptWarning}</span>
@@ -998,7 +1033,7 @@ export default function Home() {
                           fetchImageSuggestions();
                         }
                       }}
-                      disabled={loading || loadingSuggestions || !imageDataUrl || (!!prompt.trim() && !promptCheck)}
+                      disabled={loading || loadingSuggestions || !imageDataUrl || (!!prompt.trim() && !promptCheck) || !!contentRestriction}
                       className="py-4 px-4 rounded-lg font-semibold text-sm bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
                     >
                       {loadingSuggestions ? "Analyzing your image..." : "Give Me Prompt Ideas"}
@@ -1006,7 +1041,7 @@ export default function Home() {
                     </button>
                     <button
                       onClick={handleAnalyze}
-                      disabled={loading || !imageDataUrl || (!!prompt.trim() && !promptCheck)}
+                      disabled={loading || !imageDataUrl || (!!prompt.trim() && !promptCheck) || !!contentRestriction}
                       className="py-4 px-4 rounded-lg font-semibold text-sm bg-gradient-to-r from-slate-700 to-slate-600 text-white hover:from-slate-600 hover:to-slate-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer border border-slate-600/50"
                     >
                       {loading ? loadingMessage : "Guide Me With Questions"}

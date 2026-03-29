@@ -269,6 +269,25 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Please provide a prompt or upload an image" }, { status: 400 });
     }
 
+    // Server-side content restriction check
+    if (prompt) {
+      const lowerPrompt = prompt.toLowerCase();
+      const restrictedPatterns = [
+        /\b(naked|nude|nudity|topless|bottomless|strip(s|ping|ped)?|undress(es|ing|ed)?|disrobe|unclothed|bare\s*(breast|chest|body|skin|butt|ass)|exposed\s*(body|breast|skin)|no\s*cloth(es|ing))\b/,
+        /\b(nsfw|xxx|porn(o|ographic|ography)?|erotic(a)?|hentai|lewd|sexually\s+explicit)\b/,
+        /\b(sex(ual)?\s+(act|scene|position)|intercourse|orgasm|masturbat|genital|penis|vagina|phallic)\b/,
+        /\b(bikini\s*(strip|remov|com(e|ing)\s*off)|takes?\s*off\s*(clothes|shirt|dress|bikini|bra|panties)|cloth(es|ing)\s*(fall|slip|com(e|ing))\s*off)\b/,
+        /\b(dismember|decapitat|mutilat|disembowel|gore|gory|graphic\s*violence|blood(y)?\s*(murder|kill|massacre|slaughter))\b/,
+        /\b(suicide|self[\s-]*harm|cut(s|ting)?\s*(wrist|themselves|herself|himself)|slit(s|ting)?\s*(wrist|throat))\b/,
+        /\b(deepfake|nudif(y|ied|ication)|fake\s*(nude|naked|porn))\b/,
+      ];
+      for (const pattern of restrictedPatterns) {
+        if (pattern.test(lowerPrompt)) {
+          return Response.json({ error: "This prompt contains content that is not allowed by the AI video models. Please revise your prompt." }, { status: 400 });
+        }
+      }
+    }
+
     // For "auto" model (used by generate), we'll pick the best model below
     // For other actions, default to grok if auto is passed
     let model = rawModel;

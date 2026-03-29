@@ -673,22 +673,21 @@ export default function Home() {
             <div className="grid grid-cols-1 gap-3 text-sm">
               <div className="flex gap-3">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">1</span>
-                <p className="text-slate-400"><span className="text-slate-200 font-medium">Choose your model</span> — Grok (8s clips) or Wan (5s or 10s clips), then pick your aspect ratio.</p>
+                <p className="text-slate-400"><span className="text-slate-200 font-medium">Choose your model &amp; format</span> — select Grok (8s clips) or Wan (5s/10s clips), then pick 16:9 wide or 9:16 vertical.</p>
               </div>
               <div className="flex gap-3">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">2</span>
-                <p className="text-slate-400"><span className="text-slate-200 font-medium">Upload your image</span> — this is the starting frame your video will animate from. The AI uses it to craft a prompt that matches.</p>
+                <p className="text-slate-400"><span className="text-slate-200 font-medium">Upload your image</span> — this is the image that will be animated into a video. The AI analyzes it to make sure your prompt matches what&apos;s in the image.</p>
               </div>
               <div className="flex gap-3">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">3</span>
-                <p className="text-slate-400"><span className="text-slate-200 font-medium">Describe your idea</span> — tell us what you want to happen in the video, even a rough idea works. Or leave it blank and we&apos;ll ask you questions to figure it out!</p>
+                <p className="text-slate-400"><span className="text-slate-200 font-medium">Describe how it should move</span> (optional) — tell us what motion or action you want. Not sure? Leave it blank and we&apos;ll ask you questions, or click <span className="text-slate-300">Surprise Me</span> for an instant creative idea.</p>
               </div>
               <div className="flex gap-3">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">4</span>
-                <p className="text-slate-400"><span className="text-slate-200 font-medium">Click the button</span> — we&apos;ll ask a few quick questions, then generate an optimized prompt you can copy and paste directly into {model === "grok" ? "Grok" : "Wan"}.</p>
+                <p className="text-slate-400"><span className="text-slate-200 font-medium">Get your prompt</span> — we&apos;ll generate an optimized prompt you can copy and paste directly into {model === "grok" ? "Grok" : "Wan"} to create your video.</p>
               </div>
             </div>
-            <p className="text-xs text-slate-500 mt-3 text-center">Or skip all that and hit <span className="text-slate-400 font-medium">Surprise Me</span> for an instant creative prompt!</p>
           </div>
         )}
 

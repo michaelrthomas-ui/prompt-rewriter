@@ -1052,24 +1052,24 @@ export default function Home() {
                     </button>
                   </div>
                   {imageSuggestions.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-4">
                       {imageSuggestions.map((t, i) => (
                         <div
                           key={`sug-${i}`}
-                          className="p-3 rounded-lg bg-slate-800 border border-slate-700/50"
+                          className="p-4 rounded-lg bg-slate-800 border border-slate-700/50"
                         >
-                          <span className="text-xs text-indigo-400 font-medium">{t.category}</span>
-                          <p className="text-slate-400 text-xs mt-1">{t.prompt}</p>
+                          <span className="text-sm text-indigo-400 font-semibold">{t.category}</span>
+                          <p className="text-slate-300 text-sm mt-2 leading-relaxed">{t.prompt}</p>
                           <div className="flex gap-2 mt-3">
                             <button
                               onClick={() => handleUseSuggestion(t.prompt)}
-                              className="px-3 py-1.5 rounded-md text-xs font-medium bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/40 transition-colors cursor-pointer"
+                              className="px-4 py-2 rounded-md text-sm font-medium bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/40 transition-colors cursor-pointer"
                             >
                               Use This
                             </button>
                             <button
                               onClick={() => handleExpandSuggestion(t.prompt)}
-                              className="px-3 py-1.5 rounded-md text-xs font-medium bg-slate-700/50 text-slate-300 hover:bg-slate-700 transition-colors cursor-pointer"
+                              className="px-4 py-2 rounded-md text-sm font-medium bg-slate-700/50 text-slate-300 hover:bg-slate-700 transition-colors cursor-pointer"
                             >
                               Refine This
                             </button>

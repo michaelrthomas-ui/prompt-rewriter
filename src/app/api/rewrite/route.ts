@@ -263,20 +263,28 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { model, action, prompt, questions, image, duration, aspect } = await request.json();
+    const { model: rawModel, action, prompt, questions, image, duration, aspect } = await request.json();
 
     if (!prompt && !image) {
       return Response.json({ error: "Please provide a prompt or upload an image" }, { status: 400 });
     }
-    if (model !== "grok" && model !== "wan") {
-      return Response.json({ error: "Model must be 'grok' or 'wan'" }, { status: 400 });
+
+    // For "auto" model (used by generate), we'll pick the best model below
+    // For other actions, default to grok if auto is passed
+    let model = rawModel;
+    if (model === "auto" && action !== "generate") {
+      model = "grok";
+    }
+    if (model !== "grok" && model !== "wan" && model !== "auto") {
+      return Response.json({ error: "Model must be 'grok', 'wan', or 'auto'" }, { status: 400 });
     }
 
-    const clipDuration = model === "grok" ? 8 : (duration === 10 ? 10 : 5);
+    const resolvedModel = model === "auto" ? "grok" : model; // temporary default for shared setup
+    const clipDuration = resolvedModel === "grok" ? 8 : (duration === 10 ? 10 : 5);
     const aspectRatio = aspect === "9:16" ? "9:16" : (aspect === "16:9" ? "16:9" : null);
 
-    const modelName = model === "grok" ? "Grok" : "Wan";
-    const expertise = model === "grok" ? GROK_EXPERTISE : WAN_EXPERTISE;
+    const modelName = resolvedModel === "grok" ? "Grok" : "Wan";
+    const expertise = resolvedModel === "grok" ? GROK_EXPERTISE : WAN_EXPERTISE;
 
     // Build context from previous Q&A rounds
     let qaContext = "";
@@ -454,22 +462,80 @@ Example: {"questions":["Should the camera slowly push in toward the subject?","D
       return Response.json({ questions: parsed.questions, readyToGenerate: parsed.readyToGenerate });
 
     } else if (action === "generate") {
-      const hasPrompt = prompt && prompt.trim().length > 0;
-      const promptIntro = hasPrompt
-        ? `A user wants to create an image-to-video prompt for ${modelName}. Their initial idea is:\n\n"${prompt}"${imageContext}${qaContext}`
-        : `A user wants to create an image-to-video prompt for ${modelName}. They uploaded a reference image (shown above) but did not write their own prompt. Based on the image and their answers to your questions, create the best possible prompt.${qaContext}`;
+      // Step 0: If model is "auto", pick the best model based on the prompt content
+      let genModel: "grok" | "wan" = "grok";
+      let genDuration = 8;
+      if (rawModel === "auto") {
+        const pickPrompt = `You are an expert on AI image-to-video models. Given a user's prompt (and optional image), pick the BEST model and duration.
 
-      const textPrompt = `${expertise}
+MODELS:
+- Grok: Best for multi-beat sequences, scene transitions, complex camera work, dramatic/cinematic scenes, native audio with lip-sync for dialogue AND singing. Duration: always 8 seconds. Max 720p.
+- Wan: Best for single smooth motions, physics simulations, realistic natural movement, high quality output. Duration: 5 seconds (simple motion) or 10 seconds (more complex). 1080p at 24fps.
+
+GUIDELINES:
+- If the prompt describes dialogue, singing, or speaking → Grok (superior lip-sync)
+- If the prompt describes multiple scenes, cuts, or transitions → Grok (multi-beat support)
+- If the prompt describes simple/subtle motion (wind, water, breathing) → Wan 5s
+- If the prompt describes a single continuous action with detail → Wan 10s
+- If the prompt describes dramatic cinematic sequences → Grok
+- If the prompt emphasizes visual quality/resolution → Wan (1080p vs 720p)
+- If the prompt describes physics-based interactions → Wan (physics engine)
+- When in doubt, pick Grok 8s — it's the most versatile.
+
+USER'S PROMPT: "${prompt || "(image only — no text prompt)"}"
+${questions && questions.length > 0 ? `\nQ&A CONTEXT:\n${questions.map((q: { question: string; answer: string }) => `- "${q.question}" → ${q.answer}`).join("\n")}` : ""}
+
+Return ONLY a JSON object: {"model":"grok" or "wan","duration":5 or 8 or 10,"reason":"one sentence why"}`;
+
+        const pickResult = await callKieAI(image ? buildContent(pickPrompt, image) : pickPrompt);
+        try {
+          const pickMatch = pickResult.match(/\{[\s\S]*\}/);
+          const pickParsed = pickMatch ? JSON.parse(pickMatch[0]) : JSON.parse(pickResult);
+          if (pickParsed.model === "wan" || pickParsed.model === "grok") {
+            genModel = pickParsed.model;
+          }
+          if (pickParsed.duration === 5 || pickParsed.duration === 8 || pickParsed.duration === 10) {
+            genDuration = pickParsed.duration;
+          } else {
+            genDuration = genModel === "grok" ? 8 : 5;
+          }
+        } catch {
+          // Default to grok 8s
+        }
+      } else {
+        genModel = model;
+        genDuration = clipDuration;
+      }
+
+      const genModelName = genModel === "grok" ? "Grok" : "Wan";
+      const genExpertise = genModel === "grok" ? GROK_EXPERTISE : WAN_EXPERTISE;
+
+      const hasPrompt = prompt && prompt.trim().length > 0;
+      const genImageContext = image
+        ? `\n\nIMPORTANT: The user has uploaded a reference image (shown above). Analyze this image carefully. The prompt they write is meant to describe how this image should be ANIMATED into a video using ${genModelName}'s image-to-video feature.
+
+Common mistakes users make with image-to-video prompts:
+- Writing text/dialogue they want the person to SAY (these models animate images, they don't add speech or text overlays)
+- Writing marketing copy or captions instead of motion/animation descriptions
+- Describing a completely different scene that doesn't match the uploaded image
+
+The uploaded image IS the starting frame. The prompt describes what HAPPENS NEXT — the motion, camera movement, animation, and audio.`
+        : "";
+      const promptIntro = hasPrompt
+        ? `A user wants to create an image-to-video prompt for ${genModelName}. Their initial idea is:\n\n"${prompt}"${genImageContext}${qaContext}`
+        : `A user wants to create an image-to-video prompt for ${genModelName}. They uploaded a reference image (shown above) but did not write their own prompt. Based on the image and their answers to your questions, create the best possible prompt.${qaContext}`;
+
+      const textPrompt = `${genExpertise}
 
 ${promptIntro}
 
-Now write the BEST possible ${modelName} image-to-video prompt based on everything you know about what they want. Apply all your expertise about what works well with ${modelName}. Make it detailed, specific, and optimized for the best possible output. Fix any issues that would confuse ${modelName}.
+Now write the BEST possible ${genModelName} image-to-video prompt based on everything you know about what they want. Apply all your expertise about what works well with ${genModelName}. Make it detailed, specific, and optimized for the best possible output. Fix any issues that would confuse ${genModelName}.
 
-DURATION: The generated video will be ${clipDuration} seconds long. Design the prompt for EXACTLY ${clipDuration} seconds of action — don't describe more action than can realistically happen in ${clipDuration} seconds. ${clipDuration <= 5 ? "With only 5 seconds, keep it to ONE simple motion or change." : clipDuration <= 8 ? "With 8 seconds, you can fit one clear action with some buildup." : "With 10 seconds, you have room for one primary action with a setup and payoff."}
+DURATION: The generated video will be ${genDuration} seconds long. Design the prompt for EXACTLY ${genDuration} seconds of action — don't describe more action than can realistically happen in ${genDuration} seconds. ${genDuration <= 5 ? "With only 5 seconds, keep it to ONE simple motion or change." : genDuration <= 8 ? "With 8 seconds, you can fit one clear action with some buildup." : "With 10 seconds, you have room for one primary action with a setup and payoff."}
 ${aspectRatio ? `\nASPECT RATIO: The video will be rendered in ${aspectRatio} format. ${aspectRatio === "16:9" ? "This is WIDE/LANDSCAPE — optimize for horizontal compositions, wide establishing shots, lateral camera movements (pans, tracking shots), and subjects positioned with horizontal breathing room. Think cinematic widescreen." : "This is VERTICAL/PORTRAIT (like a phone screen) — optimize for tall compositions, vertically-oriented subjects, upward/downward camera movements (tilts, crane shots), and tight framing on faces or full-body shots. Avoid wide landscape compositions that would feel cramped vertically. Think TikTok/Reels/Shorts framing."}` : ""}
 
 THE #1 RULE — PRESERVE THE USER'S CORE IDEA:
-The user's main concept/action MUST appear in the generated prompt. NEVER remove, water down, or replace the user's core idea with something safer or simpler. If they want "a fish swallows a man whole," the prompt MUST describe a fish swallowing a man whole. If they want something surreal, fantastical, or physically impossible, INCLUDE IT — your job is to express their idea in the best possible way for ${modelName}, NOT to decide their idea is too hard and replace it with something generic. Optimize HOW it's described, never WHAT is described.
+The user's main concept/action MUST appear in the generated prompt. NEVER remove, water down, or replace the user's core idea with something safer or simpler. If they want "a fish swallows a man whole," the prompt MUST describe a fish swallowing a man whole. If they want something surreal, fantastical, or physically impossible, INCLUDE IT — your job is to express their idea in the best possible way for ${genModelName}, NOT to decide their idea is too hard and replace it with something generic. Optimize HOW it's described, never WHAT is described.
 
 FORMATTING RULES FOR THE OUTPUT PROMPT:
 - Write ONE single prompt. Do NOT split into multiple clips unless the user specifically asked for it.
@@ -477,11 +543,11 @@ FORMATTING RULES FOR THE OUTPUT PROMPT:
 - Front-load the key subject and action in the first 20-30 words.
 - Structure as: Subject + Action + Setting + Camera + Lighting/Mood, then end with AUDIO: section.
 - Use specific action verbs with intensity modifiers ("surges," "unfurls," "shatters" not "moves").
-- Use positive descriptions only — negative prompts are completely IGNORED by ${modelName}.
+- Use positive descriptions only — negative prompts are completely IGNORED by ${genModelName}.
 - For multi-beat action, list actions in order. Use "camera switch" or "cut to" for transitions.
 - Always end with "AUDIO:" section describing music, sound effects, ambient sounds, and/or dialogue.
 
-COMPLEXITY CHECK: If the user's idea involves WAY too much action for a single ${clipDuration}-second clip, add a note at the very end on a new line starting with "⚠️ TIP:" suggesting the action might be a lot for ${clipDuration} seconds, and the user could split this into separate clip prompts for better results. Do NOT mention "Extend from Frame" or any specific tool features. But STILL write the single prompt above the tip — let the user decide if they want to split it.
+COMPLEXITY CHECK: If the user's idea involves WAY too much action for a single ${genDuration}-second clip, add a note at the very end on a new line starting with "⚠️ TIP:" suggesting the action might be a lot for ${genDuration} seconds, and the user could split this into separate clip prompts for better results. Do NOT mention "Extend from Frame" or any specific tool features. But STILL write the single prompt above the tip — let the user decide if they want to split it.
 
 ${image ? `CRITICAL: The prompt MUST describe how the uploaded image should ANIMATE into video. Describe motion, camera movement, and changes.
 
@@ -489,7 +555,7 @@ TEXT/VOICE HANDLING: Check the Q&A answers above — if the user was asked about
 - If they said YES to voice narration: include "a voice reads the on-screen text aloud" or similar in the audio layer
 - If they said NO to voice narration: include "no voice, no narration, no speech — ambient sounds only" in the audio layer
 - If they weren't asked (no text in image): handle audio normally with ambient sounds
-This is important because ${modelName} may auto-generate voiceovers of visible text in the source image.` : ""}
+This is important because ${genModelName} may auto-generate voiceovers of visible text in the source image.` : ""}
 
 Return ONLY a JSON object with this exact format (no markdown, no code blocks):
 {"prompt":"the optimized prompt text here","summary":"1-2 sentence summary of what was improved from the original idea","warning":"only include this field if the user's original prompt asked for something the AI model cannot do well"}
@@ -497,7 +563,7 @@ Return ONLY a JSON object with this exact format (no markdown, no code blocks):
 RULES FOR THE JSON:
 - "prompt" contains the full optimized prompt text. If there's a complexity tip, add it on a new line starting with "⚠️ TIP:" INSIDE the prompt field.
 - "summary" is 1-2 sentences explaining what you improved, enhanced, or added compared to the user's original idea. Be specific about what was changed. If there was no original prompt (image-only mode), describe the creative choices you made.
-- "warning" — ONLY include this field if the user's original idea asked for something ${modelName} can't do or struggles with. Examples of things that need a warning:
+- "warning" — ONLY include this field if the user's original idea asked for something ${genModelName} can't do or struggles with. Examples of things that need a warning:
   - Requesting legible text to appear, be written, or be read in the video (AI video models render text as garbled/illegible)
   - Requesting specific words to appear on screen as text overlays or captions
   - Requesting multiple scene changes or transitions (these models make a single continuous clip)
@@ -516,10 +582,12 @@ RULES FOR THE JSON:
           rewritten: parsed.prompt || text,
           summary: parsed.summary || null,
           warning: parsed.warning || null,
+          model: genModel,
+          duration: genDuration,
         });
       } catch {
         // Fallback: treat as plain text (backward compatible)
-        return Response.json({ rewritten: text });
+        return Response.json({ rewritten: text, model: genModel, duration: genDuration });
       }
 
     } else if (action === "split") {

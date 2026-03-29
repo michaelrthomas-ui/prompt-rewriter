@@ -84,7 +84,7 @@ export default function Home() {
   const supabase = createClient();
   const router = useRouter();
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
-  // model is now auto-selected based on duration and content
+  // model and duration are auto-selected by AI based on the final prompt
   const [prompt, setPrompt] = useState("");
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [imageName, setImageName] = useState("");
@@ -98,9 +98,9 @@ export default function Home() {
   const [error, setError] = useState("");
   const [step, setStep] = useState<"input" | "questions" | "result">("input");
   const [readyToGenerate, setReadyToGenerate] = useState(false);
-  const [durationChoice, setDurationChoice] = useState<"short" | "long">("long");
   const [aspect, setAspect] = useState<AspectRatio>("16:9");
-  const [selectedModel, setSelectedModel] = useState<Model | null>(null);
+  const [resultModel, setResultModel] = useState<Model>("grok");
+  const [resultDuration, setResultDuration] = useState<number>(8);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -211,11 +211,11 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: effectiveModel,
+          model: defaultModel,
           action: "suggest",
           prompt: currentInput.prompt,
           image: imageDataUrl,
-          duration: effectiveDuration,
+          duration: defaultDuration,
           aspect,
         }),
       });
@@ -241,11 +241,11 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: effectiveModel,
+          model: defaultModel,
           action: "check",
           prompt: prompt.trim(),
           image: imageDataUrl,
-          duration: effectiveDuration,
+          duration: defaultDuration,
           aspect,
         }),
       });
@@ -272,9 +272,9 @@ export default function Home() {
     return "";
   }
 
-  // For short duration, always Wan. For long, model is auto-selected (default grok until API decides)
-  const effectiveModel: Model = durationChoice === "short" ? "wan" : (selectedModel || "grok");
-  const effectiveDuration = durationChoice === "short" ? 5 : (effectiveModel === "grok" ? 8 : 10);
+  // Default model for pre-generate calls (analyze, suggest, check) — the actual model is picked by AI during generate
+  const defaultModel: Model = "grok";
+  const defaultDuration = 8;
   const currentAspect = aspect;
 
   // Scroll to bottom when new content appears
@@ -307,11 +307,11 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: effectiveModel,
+          model: defaultModel,
           action: "analyze",
           prompt,
           image: imageDataUrl || undefined,
-          duration: effectiveDuration,
+          duration: defaultDuration,
           aspect: currentAspect,
         }),
       });
@@ -378,12 +378,12 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: effectiveModel,
+          model: defaultModel,
           action: "analyze",
           prompt,
           questions: allQuestions,
           image: imageDataUrl || undefined,
-          duration: effectiveDuration,
+          duration: defaultDuration,
           aspect: currentAspect,
         }),
       });
@@ -405,7 +405,7 @@ export default function Home() {
       setLoading(false);
       setLoadingMessage("");
     }
-  }, [effectiveModel, prompt, imageDataUrl, effectiveDuration, currentAspect]);
+  }, [defaultModel, prompt, imageDataUrl, defaultDuration, currentAspect]);
 
   // Auto-continue: when all questions are answered and AI isn't ready yet, auto-fetch more
   const autoFetchTriggered = useRef(false);
@@ -422,25 +422,66 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allAnswered, loading, step, readyToGenerate]);
 
-  async function addToHistory(optimizedPrompt: string, sum: string | null, warn: string | null) {
+  async function addToHistory(optimizedPrompt: string, sum: string | null, warn: string | null, histModel?: Model, histDuration?: number) {
     if (!user) return;
     const { data } = await supabase
       .from("prompt_history")
       .insert({
         user_id: user.id,
-        model: effectiveModel,
+        model: histModel || resultModel,
         original_prompt: originalUserPrompt || prompt,
         optimized_prompt: optimizedPrompt,
         summary: sum,
         warning: warn,
         aspect: currentAspect,
-        duration: effectiveDuration,
+        duration: histDuration || resultDuration,
       })
       .select()
       .single();
 
     if (data) {
       setHistory((prev) => [rowToEntry(data as HistoryRow), ...prev].slice(0, 50));
+    }
+  }
+
+  async function handleGenerateWithPrompt(overridePrompt: string) {
+    setLoading(true);
+    setLoadingMessage("Crafting your optimized prompt...");
+    setError("");
+
+    try {
+      const res = await fetch("/api/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "auto",
+          action: "generate",
+          prompt: overridePrompt,
+          image: imageDataUrl || undefined,
+          aspect: currentAspect,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to generate prompt");
+      }
+
+      const data = await res.json();
+      const chosenModel: Model = data.model || "grok";
+      const chosenDuration: number = data.duration || (chosenModel === "grok" ? 8 : 5);
+      setResultModel(chosenModel);
+      setResultDuration(chosenDuration);
+      setRewritten(data.rewritten);
+      setSummary(data.summary || null);
+      setPromptIssueWarning(data.warning || null);
+      setStep("result");
+      addToHistory(data.rewritten, data.summary || null, data.warning || null, chosenModel, chosenDuration);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+      setLoadingMessage("");
     }
   }
 
@@ -456,12 +497,11 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: effectiveModel,
+          model: "auto",
           action: "generate",
           prompt,
           questions: allQuestions,
           image: imageDataUrl || undefined,
-          duration: effectiveDuration,
           aspect: currentAspect,
         }),
       });
@@ -472,12 +512,16 @@ export default function Home() {
       }
 
       const data = await res.json();
+      const chosenModel: Model = data.model || "grok";
+      const chosenDuration: number = data.duration || (chosenModel === "grok" ? 8 : 5);
+      setResultModel(chosenModel);
+      setResultDuration(chosenDuration);
       setRewritten(data.rewritten);
       setSummary(data.summary || null);
       setPromptIssueWarning(data.warning || null);
       setAnsweredQuestions(allQuestions);
       setStep("result");
-      addToHistory(data.rewritten, data.summary || null, data.warning || null);
+      addToHistory(data.rewritten, data.summary || null, data.warning || null, chosenModel, chosenDuration);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -510,13 +554,10 @@ export default function Home() {
   }
 
   function handleUseSuggestion(suggestionPrompt: string) {
-    setRewritten(suggestionPrompt);
     setPrompt(suggestionPrompt);
     setShowTemplates(false);
-    setSummary(null);
-    setPromptIssueWarning(null);
-    setStep("result");
-    addToHistory(suggestionPrompt, "Used AI suggestion", null);
+    // Run through generate so AI picks the best model/duration
+    handleGenerateWithPrompt(suggestionPrompt);
   }
 
   const expandPromptRef = useRef<string | null>(null);
@@ -553,9 +594,8 @@ export default function Home() {
   }, [prompt]);
 
   function handleLoadFromHistory(entry: HistoryEntry) {
-    setSelectedModel(entry.model);
-    if (entry.duration === 5) setDurationChoice("short");
-    else setDurationChoice("long");
+    setResultModel(entry.model);
+    setResultDuration(entry.duration ?? (entry.model === "grok" ? 8 : 5));
     setRewritten(entry.optimizedPrompt);
     setSummary(entry.summary);
     setPromptIssueWarning(entry.warning);
@@ -616,12 +656,12 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: effectiveModel,
+          model: resultModel,
           action: "split",
           prompt: cleanPrompt,
           questions: allQuestions,
           image: imageDataUrl || undefined,
-          duration: effectiveDuration,
+          duration: resultDuration,
           aspect: currentAspect,
         }),
       });
@@ -903,33 +943,10 @@ export default function Home() {
               </div>
             )}
 
-            {/* Video settings — shown after image upload */}
+            {/* Format setting — shown after image upload */}
             {imageDataUrl && !showTemplates && (
               <div className="mb-4 p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                <div className="flex flex-wrap items-center justify-center gap-4">
-                  <div className="flex gap-2 items-center">
-                    <span className="text-slate-400 text-sm mr-1">Duration:</span>
-                    <button
-                      onClick={() => setDurationChoice("short")}
-                      className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all cursor-pointer ${
-                        durationChoice === "short"
-                          ? "bg-indigo-600/80 text-white"
-                          : "bg-slate-700 text-slate-400 hover:bg-slate-600"
-                      }`}
-                    >
-                      5 seconds
-                    </button>
-                    <button
-                      onClick={() => setDurationChoice("long")}
-                      className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all cursor-pointer ${
-                        durationChoice === "long"
-                          ? "bg-indigo-600/80 text-white"
-                          : "bg-slate-700 text-slate-400 hover:bg-slate-600"
-                      }`}
-                    >
-                      8–10 seconds
-                    </button>
-                  </div>
+                <div className="flex items-center justify-center gap-4">
                   <div className="flex gap-2 items-center">
                     <span className="text-slate-400 text-sm mr-1">Format:</span>
                     <button
@@ -1299,9 +1316,9 @@ export default function Home() {
                 <label className="text-sm font-medium text-emerald-400">
                   Your Optimized Prompt
                   <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
-                    effectiveModel === "grok" ? "bg-indigo-600/30 text-indigo-400" : "bg-purple-600/30 text-purple-400"
+                    resultModel === "grok" ? "bg-indigo-600/30 text-indigo-400" : "bg-purple-600/30 text-purple-400"
                   }`}>
-                    for {effectiveModel === "grok" ? "Grok" : "Wan"} · {effectiveDuration}s
+                    for {resultModel === "grok" ? "Grok" : "Wan"} · {resultDuration}s
                   </span>
                 </label>
                 <div className="flex items-center gap-3">

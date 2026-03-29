@@ -506,8 +506,25 @@ export default function Home() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function handleUseTemplate(templatePrompt: string) {
-    setPrompt(templatePrompt);
+  function handleUseSuggestion(suggestionPrompt: string) {
+    setPrompt(suggestionPrompt);
+    setShowTemplates(false);
+  }
+
+  const expandPromptRef = useRef<string | null>(null);
+
+  // When prompt updates after "Expand on this", trigger analyze
+  useEffect(() => {
+    if (expandPromptRef.current && prompt === expandPromptRef.current) {
+      expandPromptRef.current = null;
+      handleAnalyze();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prompt]);
+
+  function handleExpandSuggestion(suggestionPrompt: string) {
+    expandPromptRef.current = suggestionPrompt;
+    setPrompt(suggestionPrompt);
     setShowTemplates(false);
   }
 
@@ -938,16 +955,29 @@ export default function Home() {
             {showTemplates && imageSuggestions.length > 0 && (
               <div className="mb-4">
                 <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Suggested prompts for your image</p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   {imageSuggestions.map((t, i) => (
-                    <button
+                    <div
                       key={`sug-${i}`}
-                      onClick={() => handleUseTemplate(t.prompt)}
-                      className="p-3 rounded-lg bg-slate-800 border border-slate-700/50 hover:border-indigo-500/50 hover:bg-slate-800/80 text-left transition-all cursor-pointer group"
+                      className="p-3 rounded-lg bg-slate-800 border border-slate-700/50"
                     >
                       <span className="text-xs text-indigo-400 font-medium">{t.category}</span>
-                      <p className="text-slate-400 text-xs mt-1 group-hover:text-slate-300">{t.prompt}</p>
-                    </button>
+                      <p className="text-slate-400 text-xs mt-1">{t.prompt}</p>
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => handleUseSuggestion(t.prompt)}
+                          className="px-3 py-1.5 rounded-md text-xs font-medium bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/40 transition-colors cursor-pointer"
+                        >
+                          Use This
+                        </button>
+                        <button
+                          onClick={() => handleExpandSuggestion(t.prompt)}
+                          className="px-3 py-1.5 rounded-md text-xs font-medium bg-slate-700/50 text-slate-300 hover:bg-slate-700 transition-colors cursor-pointer"
+                        >
+                          Expand on This
+                        </button>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>

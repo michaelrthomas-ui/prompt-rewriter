@@ -639,12 +639,20 @@ You are checking whether a user's prompt idea will work well with ${modelName} i
 The user wrote: "${prompt}"
 ${image ? `They uploaded the reference image shown above. This is the ACTUAL image they want to animate into a video.
 
-CRITICAL — CHECK THE PROMPT AGAINST THE IMAGE:
-- Look at what's actually IN the image (people, objects, setting, text, etc.)
-- ${modelName} CAN introduce new elements that aren't in the original image — dragons, monsters, people, objects can EMERGE, APPEAR, or ENTER the scene. This is totally valid and works well!
-- If the user mentions something not in the image, do NOT say it can't be done. Instead, check if their prompt describes HOW it appears. If they just say "the dragon eats" without describing the dragon emerging, your suggestion should add that (e.g. "a dragon bursts from the camper" or "a dragon's head emerges from the flames").
-- The main thing to check is whether the prompt gives ${modelName} enough context to understand what to generate.
-- If they reference reading/displaying specific legible text, note that text renders as garbled.` : ""}
+STEP 1 — CAREFULLY DESCRIBE WHAT YOU SEE IN THE IMAGE:
+Before doing anything else, study the image and list (to yourself) every visible element: people (or lack of people), objects, setting, lighting, mood, text overlays, etc. Be extremely precise — if you only see boots but no person's face or body, note "boots visible, no person visible." If there's text in the image, note exactly what it says.
+
+STEP 2 — COMPARE THE PROMPT TO THE IMAGE:
+Go through every noun and subject in the user's prompt and check if it exists in the image:
+- "the man" → Is there actually a man visible? Or just boots/hands/partial view?
+- "the text" → Is there text in the image? What does it say? Can ${modelName} render readable text? (No — text appears garbled in video)
+- Any subject mentioned → Is it in the image or does it need to emerge/appear?
+
+STEP 3 — WRITE YOUR RESPONSE:
+- ${modelName} CAN introduce new elements not in the image — but the prompt must describe HOW they appear (emerge, enter, materialize, etc.)
+- If the user references something not in the image, your suggestion MUST acknowledge what IS actually in the image and work from there
+- If they reference reading/displaying legible text, note that text renders as garbled
+- Your suggestion must ONLY reference things that are actually visible in the image OR clearly describe new elements emerging into the scene` : ""}
 
 Analyze their prompt and determine:
 1. Is the prompt clear enough for ${modelName} to understand what to generate?
@@ -670,12 +678,9 @@ THINGS ${modelName} CAN DO:
 - Lighting changes, atmospheric effects
 - Audio generation (ambient sounds, effects)
 
-IMPORTANT — IMAGE-TO-VIDEO LOGIC:
-When the user's prompt mentions something that isn't in the image (like "a monster" when there's no monster), this does NOT automatically mean the prompt is bad. ${modelName} animates FROM the image, so elements not in the image need to EMERGE, APPEAR, or ENTER the scene. Your suggested rewrite should make this work — describe HOW the missing element appears (e.g. "a shadow grows and morphs into a monster emerging from behind the trees").
-
 Return ONLY a JSON object (no markdown, no code blocks):
 If the prompt is good as-is: {"status":"good","message":"Brief encouraging feedback about why this will work well"}
-If there are issues: {"status":"warning","message":"Short explanation of the issue","suggestion":"A rewritten version of their prompt that PRESERVES their creative idea but makes it work with the image and ${modelName}. Write it as a complete, ready-to-use prompt (30-80 words). Make elements that aren't in the image emerge/appear naturally."}
+If there are issues: {"status":"warning","message":"Short explanation of the issue — be specific about what's wrong (e.g. 'There's no man in the image — only boots, a campfire, and an RV are visible')","suggestion":"A rewritten version that PRESERVES their creative idea but accurately reflects what's in the image. Only reference subjects/objects actually visible in the image, or explicitly describe new elements EMERGING into the scene. Write as a complete prompt (30-80 words)."}
 
 Keep the message to 1-2 sentences. Be helpful, not discouraging.`;
 

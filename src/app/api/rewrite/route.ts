@@ -641,14 +641,15 @@ ${image ? `They uploaded the reference image shown above. This is the ACTUAL ima
 
 CRITICAL — CHECK THE PROMPT AGAINST THE IMAGE:
 - Look at what's actually IN the image (people, objects, setting, text, etc.)
-- Does the user's prompt match what's in the image? If they mention "a man" but there's no man visible, flag that.
-- If they reference text/words in the image, note that the AI model cannot make characters read or display legible text.
-- If their prompt describes things that aren't in the image at all, warn them.` : ""}
+- ${modelName} CAN introduce new elements that aren't in the original image — dragons, monsters, people, objects can EMERGE, APPEAR, or ENTER the scene. This is totally valid and works well!
+- If the user mentions something not in the image, do NOT say it can't be done. Instead, check if their prompt describes HOW it appears. If they just say "the dragon eats" without describing the dragon emerging, your suggestion should add that (e.g. "a dragon bursts from the camper" or "a dragon's head emerges from the flames").
+- The main thing to check is whether the prompt gives ${modelName} enough context to understand what to generate.
+- If they reference reading/displaying specific legible text, note that text renders as garbled.` : ""}
 
 Analyze their prompt and determine:
-1. Does the prompt match what's actually in the uploaded image?
-2. Is this something ${modelName} can actually do well?
-3. Does the prompt make sense for image-to-video generation?
+1. Is the prompt clear enough for ${modelName} to understand what to generate?
+2. If new elements are mentioned, does the prompt describe how they appear in the scene?
+3. Is this something ${modelName} can actually do well?
 4. Are there any parts that will likely fail or produce poor results?
 
 KNOWN ${modelName} LIMITATIONS:
@@ -661,6 +662,7 @@ KNOWN ${modelName} LIMITATIONS:
 - Video is only ${clipDuration} seconds — overly complex sequences won't fit
 
 THINGS ${modelName} CAN DO:
+- Introduce NEW elements not in the original image (creatures, people, objects emerging/appearing)
 - Speaking, talking, lip movement, dialogue-like motion
 - Camera movements (pan, zoom, tilt, tracking)
 - Natural motion (wind, water, fire, smoke, hair, clothing)

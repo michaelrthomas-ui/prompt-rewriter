@@ -314,13 +314,15 @@ If you detect a mismatch between the image and the prompt (e.g. the prompt conta
       let analyzeIntro: string;
       const questionCount = questions ? questions.length : 0;
       if (imageOnlyMode) {
-        analyzeIntro = `${expertise}
+        analyzeIntro = `You are an expert on AI image-to-video models. You know both Grok (by xAI) and Wan 2.5 — the best model and duration will be chosen automatically later based on the final prompt. Your job is to ask creative questions to understand what the user wants.
 
-A user wants to create an image-to-video prompt for ${modelName}. They uploaded a reference image (shown above) but did NOT write any prompt — they want YOUR help to figure out what to do with this image. Think of this like a game of "Guess Who" — you're narrowing down exactly what they envision through yes/no questions.
+A user wants to create an image-to-video prompt. They uploaded a reference image (shown above) but did NOT write any prompt — they want YOUR help to figure out what to do with this image. Think of this like a game of "Guess Who" — you're narrowing down exactly what they envision through yes/no questions.
 
 LOOK AT THE IMAGE CAREFULLY. Describe to yourself what you see — who/what is in it, the setting, the mood, what's interesting about it. Then ask questions that help narrow down their creative vision.
 
-TEXT IN IMAGE CHECK: Look carefully — does the image contain any visible text, words, quotes, captions, or speech bubbles? If YES, you MUST ask early (Round 1 or 2): "Your image has text in it — should a voice narrate or read that text aloud in the video?" This is important because ${modelName} may auto-generate a voiceover of visible text. If the user says NO, the generated prompt must include "no voice, no narration, no speech" in the audio layer. If YES, include "a voice reads the on-screen text aloud" in the audio layer.${qaContext}
+IMPORTANT: Do NOT mention specific durations (like "5 seconds" or "10 seconds") in your questions. The duration will be decided automatically later. Do NOT mention specific model names (Grok or Wan) in your questions.
+
+TEXT IN IMAGE CHECK: Look carefully — does the image contain any visible text, words, quotes, captions, or speech bubbles? If YES, you MUST ask early (Round 1 or 2): "Your image has text in it — should a voice narrate or read that text aloud in the video?" This is important because the AI may auto-generate a voiceover of visible text. If the user says NO, the generated prompt must include "no voice, no narration, no speech" in the audio layer. If YES, include "a voice reads the on-screen text aloud" in the audio layer.${qaContext}
 
 ${questionCount === 0 ? `ROUND 1 — START BROAD & CREATIVE:
 This is the FIRST round of questions. You know NOTHING about what they want yet. Start with the big creative questions:
@@ -362,18 +364,20 @@ Generate 2-3 final questions.`}
 
 Do NOT repeat ANY previously asked questions. Each round must ask NEW questions that build on previous answers.`;
       } else {
-        analyzeIntro = `${expertise}
+        analyzeIntro = `You are an expert on AI image-to-video models. You know both Grok (by xAI) and Wan 2.5 — the best model and duration will be chosen automatically later based on the final prompt. Your job is to ask clarifying questions to understand what the user wants.
 
-A user wants to create an image-to-video prompt for ${modelName}. Their initial idea is:
+A user wants to create an image-to-video prompt. Their initial idea is:
 
 "${prompt}"${imageContext}${qaContext}
 
-TEXT IN IMAGE CHECK: Look carefully at the uploaded image — does it contain any visible text, words, quotes, captions, or speech bubbles? If YES, one of your questions MUST be: "Your image has text in it — should a voice narrate or read that text aloud in the video?" This is important because ${modelName} may auto-generate a voiceover of visible text. If the user says NO, the generated prompt must include "no voice, no narration, no speech" in the audio layer. If YES, include "a voice reads the on-screen text aloud" in the audio layer.
+IMPORTANT: Do NOT mention specific durations (like "5 seconds" or "10 seconds") in your questions. The duration will be decided automatically later. Do NOT mention specific model names (Grok or Wan) in your questions.
 
-Based on your expertise with ${modelName}, generate 3-5 clarifying questions that will help you understand what they REALLY want. The user can answer Yes, No, or type a custom response. Focus on:
+TEXT IN IMAGE CHECK: Look carefully at the uploaded image — does it contain any visible text, words, quotes, captions, or speech bubbles? If YES, one of your questions MUST be: "Your image has text in it — should a voice narrate or read that text aloud in the video?" This is important because the AI may auto-generate a voiceover of visible text. If the user says NO, the generated prompt must include "no voice, no narration, no speech" in the audio layer. If YES, include "a voice reads the on-screen text aloud" in the audio layer.
+
+Based on your expertise with AI video models, generate 3-5 clarifying questions that will help you understand what they REALLY want. The user can answer Yes, No, or type a custom response. Focus on:
 - Ambiguities in their description that could lead to unexpected results
-- Important details they haven't specified that ${modelName} needs (camera, lighting, style, mood, motion)
-- Potential misunderstandings or things ${modelName} might interpret differently than intended
+- Important details they haven't specified (camera, lighting, style, mood, motion)
+- Potential misunderstandings about what image-to-video can do
 - Creative choices that would significantly change the output
 ${image ? "- WHETHER THE PROMPT ACTUALLY MAKES SENSE FOR IMAGE-TO-VIDEO (if it contains dialogue, marketing text, or doesn't describe animation, your first question should address this and help the user understand what image-to-video prompts actually do)" : ""}
 
@@ -399,7 +403,7 @@ CRITICAL QUESTION FORMAT RULES — FOLLOW THESE EXACTLY:
 3. Keep questions concise — one sentence, one concept.
 4. VALIDATION: Go through each question you generated. If it contains " or " anywhere, DELETE IT and write a new yes/no question about just one of the options.
 
-READINESS ASSESSMENT: Based on everything so far, decide if you have ENOUGH information to write an excellent ${modelName} prompt.
+READINESS ASSESSMENT: Based on everything so far, decide if you have ENOUGH information to write an excellent image-to-video prompt.
 ${imageOnlyMode ? `For image-only mode, you need MORE info before you're ready — since there's no user prompt to start from, you need at MINIMUM: (1) a clear creative direction/vibe, (2) a specific main action or event, (3) some sense of mood/style. Do NOT set readyToGenerate to true until you've asked at least 6-8 questions and have a clear picture. It's better to ask too many questions than to generate a vague prompt.` : `You need at minimum: a clear subject/scene, motion intent, and camera/style direction.`}
 If you have all of these, set "readyToGenerate" to true. If critical details are still missing, set it to false.
 
@@ -727,9 +731,7 @@ Return ONLY a JSON object (no markdown):
         return Response.json({ error: "Prompt is required for checking" }, { status: 400 });
       }
 
-      const textPrompt = `${expertise}
-
-You are checking whether a user's prompt idea will work well with ${modelName} image-to-video generation.
+      const textPrompt = `You are an expert on AI image-to-video models (both Grok and Wan 2.5). You are checking whether a user's prompt idea will work well with AI image-to-video generation.
 
 The user wrote: "${prompt}"
 ${image ? `They uploaded the reference image shown above. This is the ACTUAL image they want to animate into a video.
@@ -743,35 +745,33 @@ Go through every noun and subject in the user's prompt and check if it exists in
 - Any subject mentioned → Is it in the image or does it need to emerge/appear?
 
 IMPORTANT — TEXT AND VOICE DISTINCTION:
-- "reads the text" / "speaks the words" / "narrates" = the user wants someone to READ ALOUD or NARRATE text that's in the image. This IS possible — ${modelName} can generate a person appearing/emerging AND speaking, plus voice audio. This is a VALID and ACHIEVABLE request.
-- "text appears" / "write text" / "show words" / "display caption" = the user wants NEW text generated visually on screen. This will NOT work — ${modelName} renders new text as garbled.
-- If the image contains text and the user wants it read aloud, even by "a man" who isn't in the image — that IS doable. ${modelName} can introduce a person who emerges into the scene and speaks/narrates. Treat this as a creative prompt that needs the right phrasing, NOT as impossible.
+- "reads the text" / "speaks the words" / "narrates" = the user wants someone to READ ALOUD or NARRATE text that's in the image. This IS possible — these AI models can generate a person appearing/emerging AND speaking, plus voice audio. This is a VALID and ACHIEVABLE request.
+- "text appears" / "write text" / "show words" / "display caption" = the user wants NEW text generated visually on screen. This will NOT work — AI video models render new text as garbled.
+- If the image contains text and the user wants it read aloud, even by "a man" who isn't in the image — that IS doable. The AI can introduce a person who emerges into the scene and speaks/narrates. Treat this as a creative prompt that needs the right phrasing, NOT as impossible.
 
 STEP 3 — WRITE YOUR RESPONSE:
-- ${modelName} CAN introduce new elements not in the image — people, creatures, objects can EMERGE, APPEAR, or ENTER the scene
+- AI video models CAN introduce new elements not in the image — people, creatures, objects can EMERGE, APPEAR, or ENTER the scene
 - If the user mentions a person not in the image (like "the man reads the text"), don't say it's impossible. Instead, help phrase it so the person APPEARS in the scene (e.g. "a man steps into frame by the campfire and begins speaking")
 - If they want existing text READ ALOUD, that's absolutely fine — include voice narration in the audio layer and describe the person speaking
 - If they want NEW text to appear visually on screen, warn that it will render as garbled
 - Your suggestion must work WITH the image — reference what's visible and describe how new elements enter the scene` : ""}
 
 Analyze their prompt and determine:
-1. Is the prompt clear enough for ${modelName} to understand what to generate?
+1. Is the prompt clear enough for an AI video model to understand what to generate?
 2. If new elements are mentioned, does the prompt describe how they appear in the scene?
-3. Is this something ${modelName} can actually do well?
+3. Is this something AI image-to-video can actually do well?
 4. Are there any parts that will likely fail or produce poor results?
 
-KNOWN ${modelName} LIMITATIONS:
+KNOWN AI VIDEO MODEL LIMITATIONS:
 - Cannot generate NEW legible text on screen — any new text appears garbled
 - Faces and hands can warp or distort, especially with movement
-- Negative prompts are completely IGNORED — describe what you want, not what you don't
+- Negative prompts are often ignored — describe what you want, not what you don't
 - Fine temporal control doesn't work ("at 2 seconds, X happens")
 - Overly long prompts cause hazy subjects and odd proportions
-- Video is ${clipDuration} seconds — keep action realistic for that duration
 
-THINGS ${modelName} CAN DO:
+THINGS AI VIDEO MODELS CAN DO:
 - Introduce NEW elements not in the original image (creatures, people, objects emerging/appearing)
-- Multi-beat action sequences — list actions in order and Grok handles them well
-- Scene transitions using "camera switch" or "cut to" cues
+- Multi-beat action sequences and scene transitions
 - Speaking, talking, lip-sync for dialogue AND singing
 - Short dialogue: "a whisper: 'We made it.'" or "shout: 'Stop!'"
 - All standard camera movements (pan, tilt, dolly, tracking, orbit, aerial, handheld)
@@ -804,34 +804,24 @@ Keep the message to 1-2 sentences. Be helpful, not discouraging.`;
         return Response.json({ error: "Image is required for suggestions" }, { status: 400 });
       }
 
-      const modelLimitations = model === "grok"
-        ? `IMPORTANT ${modelName} GUIDELINES — every suggestion MUST follow these rules:
-- Structure as: Subject + Action + Setting + Camera + Lighting/Mood.
-- ${modelName} handles multi-beat sequences well — list actions in order.
-- Use standard cinematic camera language (pan, tilt, dolly, tracking, orbit, aerial, handheld, slow push-in, static).
-- Use "camera switch" or "cut to" for transition cues if the scene needs it.
-- Use specific action verbs with intensity modifiers — "surges," "unfurls," "shatters" beat "moves."
-- ${modelName} generates native audio — include sound direction (music, effects, ambient, even short dialogue with lip-sync).
-- End with an AUDIO: section.
-- Do NOT re-describe the image — focus on what MOVES and CHANGES.
-- Do NOT use negative prompts — they are ignored. Describe what you want instead.
-- Each suggestion must fit within ${clipDuration} seconds realistically.`
-        : `IMPORTANT ${modelName} GUIDELINES — every suggestion MUST follow these rules:
-- Only ONE primary motion/action per suggestion.
-- Keep motions realistic and achievable for a ${clipDuration}-second clip.
-- ${modelName} works best with clear, direct motion descriptions.
-- Use specific action verbs with intensity modifiers.
-- Avoid overly complex physics or multiple independent moving subjects.`;
-
-      const textPrompt = `${expertise}
+      const textPrompt = `You are an expert on AI image-to-video models (both Grok and Wan 2.5). The best model and duration will be chosen automatically later — your job is to suggest creative prompt ideas.
 
 Look at this uploaded image carefully. Study every detail — the subject, their pose/expression, the setting, objects, colors, lighting, mood, and composition.
 ${prompt ? `
 The user has also provided this text to guide your suggestions: "${prompt}"
 Use their text as inspiration — your suggestions should build on their idea, exploring different creative variations and angles based on what they described. Every suggestion must relate to their concept while offering a unique creative take.` : ""}
-Now suggest 6 CREATIVE and VISUALLY INTERESTING ways this image could be animated into a ${clipDuration}-second video using ${modelName}. Think about what would make each one genuinely exciting to watch — not just technically possible, but captivating and cinematic.${prompt ? " Remember to incorporate the user's text concept into every suggestion." : ""}
+Now suggest 6 CREATIVE and VISUALLY INTERESTING ways this image could be animated into a short video clip. Think about what would make each one genuinely exciting to watch — not just technically possible, but captivating and cinematic.${prompt ? " Remember to incorporate the user's text concept into every suggestion." : ""}
 
-${modelLimitations}
+IMPORTANT GUIDELINES — every suggestion MUST follow these rules:
+- Structure as: Subject + Action + Setting + Camera + Lighting/Mood.
+- Use standard cinematic camera language (pan, tilt, dolly, tracking, orbit, aerial, handheld, slow push-in, static).
+- Use specific action verbs with intensity modifiers — "surges," "unfurls," "shatters" beat "moves."
+- Include sound direction (music, effects, ambient, even short dialogue with lip-sync).
+- End with an AUDIO: section.
+- Do NOT re-describe the image — focus on what MOVES and CHANGES.
+- Do NOT use negative prompts — describe what you want instead.
+- Do NOT mention specific durations like "5 seconds" or "10 seconds" — the duration will be decided later.
+- Keep each suggestion to a single focused concept with one main action.
 
 ${aspectRatio ? `ASPECT RATIO: ${aspectRatio} format.` : ""}
 
@@ -842,7 +832,7 @@ TITLE RULES:
 - Bad titles: "Gentle Motion", "Camera Pan", "Nature Scene" (too vague!)
 
 PROMPT RULES:
-- Write each prompt as a complete, ready-to-use ${modelName} prompt (50-120 words)
+- Write each prompt as a complete, ready-to-use AI video prompt (50-120 words)
 - Include the 5 layers: scene/action, camera, style/lighting, motion quality, and audio
 - Be SPECIFIC to what's in THIS image — reference actual subjects, objects, colors, and setting
 - Each suggestion must be a genuinely DIFFERENT creative concept — vary the focal point, mood, energy level, and style

@@ -110,6 +110,7 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const [promptCheck, setPromptCheck] = useState<{ status: "good" | "warning"; message: string; suggestion?: string | null } | null>(null);
   const [checkingPrompt, setCheckingPrompt] = useState(false);
+  const [originalUserPrompt, setOriginalUserPrompt] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -232,6 +233,7 @@ export default function Home() {
 
   async function checkPromptFeasibility() {
     if (!prompt.trim() || !imageDataUrl || checkingPrompt) return;
+    setOriginalUserPrompt(prompt.trim());
     setCheckingPrompt(true);
     setPromptCheck(null);
     try {
@@ -424,7 +426,7 @@ export default function Home() {
       .insert({
         user_id: user.id,
         model,
-        original_prompt: prompt,
+        original_prompt: originalUserPrompt || prompt,
         optimized_prompt: optimizedPrompt,
         summary: sum,
         warning: warn,
@@ -1278,10 +1280,10 @@ export default function Home() {
             <ImageThumbnail />
 
             {/* Before / After comparison */}
-            {prompt.trim() && (
+            {(originalUserPrompt || prompt.trim()) && (
               <div className="mb-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
                 <span className="text-xs text-slate-500 uppercase tracking-wide">Your original idea</span>
-                <p className="text-slate-400 mt-1 text-sm">{prompt}</p>
+                <p className="text-slate-400 mt-1 text-sm">{originalUserPrompt || prompt}</p>
               </div>
             )}
             {!prompt.trim() && imageDataUrl && (

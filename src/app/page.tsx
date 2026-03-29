@@ -888,12 +888,14 @@ export default function Home() {
             {/* Templates toggle */}
             <div className="flex justify-center mb-4">
               <button
-                onClick={() => setShowTemplates(!showTemplates)}
-                className="text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer transition-colors"
+                onClick={() => imageDataUrl && setShowTemplates(!showTemplates)}
+                className={`text-sm transition-colors ${imageDataUrl ? "text-indigo-400 hover:text-indigo-300 cursor-pointer" : "text-slate-600 cursor-not-allowed"}`}
               >
                 {showTemplates
                   ? "Hide suggestions"
-                  : "Not sure what to type? See suggestions for your image"}
+                  : imageDataUrl
+                  ? "Not sure what to type? See suggestions for your image"
+                  : "Upload an image to see suggestions"}
               </button>
             </div>
 

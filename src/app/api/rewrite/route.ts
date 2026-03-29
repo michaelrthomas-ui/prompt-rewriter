@@ -646,8 +646,10 @@ Return ONLY a JSON object (no markdown):
       const textPrompt = `${expertise}
 
 Look at this uploaded image carefully. Study every detail — the subject, their pose/expression, the setting, objects, colors, lighting, mood, and composition.
-
-Now suggest 6 CREATIVE and VISUALLY INTERESTING ways this image could be animated into a ${clipDuration}-second video using ${modelName}. Think about what would make each one genuinely exciting to watch — not just technically possible, but captivating and cinematic.
+${prompt ? `
+The user has also provided this text to guide your suggestions: "${prompt}"
+Use their text as inspiration — your suggestions should build on their idea, exploring different creative variations and angles based on what they described. Every suggestion must relate to their concept while offering a unique creative take.` : ""}
+Now suggest 6 CREATIVE and VISUALLY INTERESTING ways this image could be animated into a ${clipDuration}-second video using ${modelName}. Think about what would make each one genuinely exciting to watch — not just technically possible, but captivating and cinematic.${prompt ? " Remember to incorporate the user's text concept into every suggestion." : ""}
 
 ${modelLimitations}
 

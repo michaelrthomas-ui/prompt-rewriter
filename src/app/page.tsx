@@ -203,7 +203,7 @@ export default function Home() {
         body: JSON.stringify({
           model,
           action: "suggest",
-          prompt: "",
+          prompt: prompt.trim(),
           image: imageDataUrl,
           duration: model === "wan" ? wanDuration : 8,
           aspect: model === "grok" ? grokAspect : wanAspect,

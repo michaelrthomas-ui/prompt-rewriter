@@ -645,22 +645,30 @@ Return ONLY a JSON object (no markdown):
 
       const textPrompt = `${expertise}
 
-Look at this uploaded image carefully. Analyze what's in it — the subject, setting, mood, colors, composition, and any notable details.
+Look at this uploaded image carefully. Study every detail — the subject, their pose/expression, the setting, objects, colors, lighting, mood, and composition.
 
-Now suggest 6 different creative ways this image could be animated into a ${clipDuration}-second video using ${modelName}. Each suggestion should be a DIFFERENT type of motion/animation style.
+Now suggest 6 CREATIVE and VISUALLY INTERESTING ways this image could be animated into a ${clipDuration}-second video using ${modelName}. Think about what would make each one genuinely exciting to watch — not just technically possible, but captivating and cinematic.
 
 ${modelLimitations}
 
 ${aspectRatio ? `ASPECT RATIO: ${aspectRatio} format.` : ""}
 
-For each suggestion, provide:
-- A short category label (2-3 words max)
-- A brief prompt description (1-2 sentences) describing the motion/animation, specific to THIS image. Write it as a prompt the user can paste directly — describe what moves, how the camera behaves, and the mood.
+TITLE RULES:
+- Each title must be 3-6 words that describe the KEY ACTION or VISUAL EVENT
+- The title should instantly tell the user what will happen — not just a vague category
+- Good titles: "Ripples Spread From Fishing Line", "Wind Catches His Hat", "Sunset Colors Shift Warm"
+- Bad titles: "Gentle Motion", "Camera Pan", "Nature Scene" (too vague!)
 
-Be specific to what's actually IN the image. Don't give generic suggestions — reference the actual subject, setting, and details you see. Every suggestion must be something ${modelName} can realistically execute well.
+PROMPT RULES:
+- Write each prompt as a complete, ready-to-use ${modelName} prompt (50-120 words)
+- Include the 5 layers: scene/action, camera, style/lighting, motion quality, and audio
+- Be SPECIFIC to what's in THIS image — reference actual subjects, objects, colors, and setting
+- Each suggestion must be a genuinely DIFFERENT creative concept — vary the focal point, mood, energy level, and style
+- Make them interesting! Think about what would look most STUNNING as a video
+- Range from subtle/peaceful to dramatic/cinematic across the 6 suggestions
 
 Return ONLY a JSON array (no markdown, no code blocks):
-[{"category":"label","prompt":"description"},{"category":"label","prompt":"description"}]`;
+[{"category":"action title here","prompt":"full prompt here"}]`;
 
       const text = await callKieAI(buildContent(textPrompt, image));
       try {

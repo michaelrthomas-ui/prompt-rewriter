@@ -1008,47 +1008,58 @@ export default function Home() {
             {/* Action buttons — two paths */}
             {!showTemplates ? (
               <>
-                <div className="space-y-3">
-                  {imageDataUrl && (
-                    <p className="text-center text-sm text-slate-400">
-                      {prompt.trim() && !promptCheck
-                        ? "Check your prompt first, then choose how to proceed"
-                        : prompt.trim()
-                        ? "Ready? Choose how to proceed"
-                        : "Choose how you\u2019d like to create your prompt"}
-                    </p>
-                  )}
-                  {prompt.trim() && !promptCheck && imageDataUrl && (
-                    <p className="text-center text-xs text-amber-400/70">
-                      Please check your prompt above before continuing
-                    </p>
-                  )}
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => {
-                        if (!imageDataUrl) return;
-                        if (imageSuggestions.length > 0) {
-                          setShowTemplates(true);
-                        } else {
-                          fetchImageSuggestions();
-                        }
-                      }}
-                      disabled={loading || loadingSuggestions || !imageDataUrl || (!!prompt.trim() && !promptCheck) || !!contentRestriction}
-                      className="py-4 px-4 rounded-lg font-semibold text-sm bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
-                    >
-                      {loadingSuggestions ? "Analyzing your image..." : "Give Me Prompt Ideas"}
-                      <span className="block text-xs font-normal text-indigo-200/70 mt-1">AI suggests ready-to-use prompts</span>
-                    </button>
-                    <button
-                      onClick={handleAnalyze}
-                      disabled={loading || !imageDataUrl || (!!prompt.trim() && !promptCheck) || !!contentRestriction}
-                      className="py-4 px-4 rounded-lg font-semibold text-sm bg-gradient-to-r from-slate-700 to-slate-600 text-white hover:from-slate-600 hover:to-slate-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer border border-slate-600/50"
-                    >
-                      {loading ? loadingMessage : "Guide Me With Questions"}
-                      <span className="block text-xs font-normal text-slate-300/70 mt-1">Answer a few quick questions</span>
-                    </button>
+                {imageDataUrl && !contentRestriction && !(prompt.trim() && !promptCheck) && (
+                  <div className="p-4 rounded-xl bg-gradient-to-b from-indigo-900/30 to-slate-800/50 border border-indigo-500/30 space-y-4">
+                    <div className="text-center">
+                      <p className="text-base font-semibold text-white">
+                        Next step: choose how to build your prompt
+                      </p>
+                      <p className="text-sm text-slate-400 mt-1">Pick one of these options to continue</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => {
+                          if (!imageDataUrl) return;
+                          if (imageSuggestions.length > 0) {
+                            setShowTemplates(true);
+                          } else {
+                            fetchImageSuggestions();
+                          }
+                        }}
+                        disabled={loading || loadingSuggestions}
+                        className="py-5 px-4 rounded-lg font-semibold text-sm bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer ring-2 ring-indigo-500/50 hover:ring-indigo-400/70"
+                      >
+                        {loadingSuggestions ? "Analyzing your image..." : "Give Me Prompt Ideas"}
+                        <span className="block text-xs font-normal text-indigo-200/70 mt-1">AI suggests ready-to-use prompts</span>
+                      </button>
+                      <button
+                        onClick={handleAnalyze}
+                        disabled={loading}
+                        className="py-5 px-4 rounded-lg font-semibold text-sm bg-gradient-to-r from-slate-700 to-slate-600 text-white hover:from-slate-600 hover:to-slate-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer ring-2 ring-slate-500/50 hover:ring-slate-400/70 border border-slate-600/50"
+                      >
+                        {loading ? loadingMessage : "Guide Me With Questions"}
+                        <span className="block text-xs font-normal text-slate-300/70 mt-1">Answer a few quick questions</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
+                {imageDataUrl && !contentRestriction && (prompt.trim() && !promptCheck) && (
+                  <div className="space-y-3 opacity-50">
+                    <p className="text-center text-sm text-amber-400/70">
+                      Check your prompt above first, then these options will unlock
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button disabled className="py-5 px-4 rounded-lg font-semibold text-sm bg-gradient-to-r from-indigo-600 to-purple-600 text-white opacity-50 cursor-not-allowed">
+                        Give Me Prompt Ideas
+                        <span className="block text-xs font-normal text-indigo-200/70 mt-1">AI suggests ready-to-use prompts</span>
+                      </button>
+                      <button disabled className="py-5 px-4 rounded-lg font-semibold text-sm bg-gradient-to-r from-slate-700 to-slate-600 text-white opacity-50 cursor-not-allowed border border-slate-600/50">
+                        Guide Me With Questions
+                        <span className="block text-xs font-normal text-slate-300/70 mt-1">Answer a few quick questions</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <>

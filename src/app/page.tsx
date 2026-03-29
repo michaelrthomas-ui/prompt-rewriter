@@ -538,8 +538,7 @@ export default function Home() {
     if (!text) return null;
 
     const warnings: { pattern: RegExp; message: string }[] = [
-      { pattern: /\bread(s|ing)?\s+(the\s+)?(text|words?|sign|caption|subtitle|message)\b/, message: "These AI models struggle with reading or interacting with written text in images. Text in generated video often appears garbled or illegible." },
-      { pattern: /\b(text|words?|letters?|caption|subtitle)\s+(appear|fade|animate|move|fly|scroll|type)\b/, message: "These AI models can't reliably generate or animate readable text overlays. Any text in the video may come out distorted." },
+      { pattern: /\b(text|words?|letters?|caption|subtitle)\s+(appear|fade|animate|move|fly|scroll|type)\b/, message: "These AI models can't reliably generate or animate new readable text on screen. Any new text will come out distorted." },
       { pattern: /\b(multiple\s+scenes?|scene\s+change|cut\s+to|transition\s+to|next\s+scene)\b/, message: "These models create a single continuous clip — they can't do scene changes or transitions between different shots." },
       { pattern: /\b(teleport|transform\s+into|morph\s+into|shape\s*shift|turn\s+into\s+a)\b/, message: "Major transformations and morphing effects are beyond what these models handle well. Stick to natural, realistic motion." },
       { pattern: /\b(close\s*-?\s*up\s+(of\s+)?(hand|finger)|detailed\s+(hand|finger)|finger\s+(movement|position|gesture)s?)\b/, message: "These models struggle with detailed hand and finger movements. Close-ups of hands often render with extra or distorted fingers." },

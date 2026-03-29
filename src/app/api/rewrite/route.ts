@@ -655,13 +655,18 @@ Before doing anything else, study the image and list (to yourself) every visible
 STEP 2 — COMPARE THE PROMPT TO THE IMAGE:
 Go through every noun and subject in the user's prompt and check if it exists in the image:
 - "the man" → Is there actually a man visible? Or just boots/hands/partial view?
-- "the text" → Is there text in the image? What does it say? Can ${modelName} render readable text? (No — text appears garbled in video)
 - Any subject mentioned → Is it in the image or does it need to emerge/appear?
+
+IMPORTANT — TEXT AND VOICE DISTINCTION:
+- "reads the text" / "speaks the words" / "narrates" = the user wants VOICE/AUDIO narration of text that's already in the image. This IS possible — ${modelName} can generate voice audio. This is NOT the same as rendering new text.
+- "text appears" / "write text" / "show words" / "display caption" = the user wants NEW text generated visually on screen. This will NOT work — ${modelName} renders new text as garbled.
+- If the image already contains text and the user wants it READ ALOUD, that's a valid request. Suggest including "a voice narrates the on-screen text" in the audio layer.
 
 STEP 3 — WRITE YOUR RESPONSE:
 - ${modelName} CAN introduce new elements not in the image — but the prompt must describe HOW they appear (emerge, enter, materialize, etc.)
 - If the user references something not in the image, your suggestion MUST acknowledge what IS actually in the image and work from there
-- If they reference reading/displaying legible text, note that text renders as garbled
+- If they want existing text READ ALOUD, that's fine — include voice narration in the audio layer
+- If they want NEW text to appear visually on screen, warn that it will render as garbled
 - Your suggestion must ONLY reference things that are actually visible in the image OR clearly describe new elements emerging into the scene` : ""}
 
 Analyze their prompt and determine:
@@ -671,7 +676,7 @@ Analyze their prompt and determine:
 4. Are there any parts that will likely fail or produce poor results?
 
 KNOWN ${modelName} LIMITATIONS:
-- Cannot render legible text, words, or captions in the video — any text appears garbled
+- Cannot generate NEW legible text, words, or captions on screen — any new text appears garbled (but CAN read existing text aloud via voice/audio)
 - Cannot do scene changes or transitions — it produces one continuous ${clipDuration}-second clip
 - Struggles with detailed hand/finger close-ups (often distorted)
 - Dense crowds with many people lose coherence

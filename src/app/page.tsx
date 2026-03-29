@@ -114,6 +114,7 @@ export default function Home() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [imageSuggestions, setImageSuggestions] = useState<{ category: string; prompt: string }[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const lastSuggestInputRef = useRef<{ image: string; prompt: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -189,13 +190,26 @@ export default function Home() {
     setImageName("");
     setImageSuggestions([]);
     setShowTemplates(false);
+    lastSuggestInputRef.current = null;
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function fetchImageSuggestions() {
     if (!imageDataUrl || loadingSuggestions) return;
+    const currentInput = { image: imageDataUrl, prompt: prompt.trim() };
+    // If inputs haven't changed since last fetch, just show cached suggestions
+    if (
+      lastSuggestInputRef.current &&
+      lastSuggestInputRef.current.image === currentInput.image &&
+      lastSuggestInputRef.current.prompt === currentInput.prompt &&
+      imageSuggestions.length > 0
+    ) {
+      setShowTemplates(true);
+      return;
+    }
     setLoadingSuggestions(true);
     setShowTemplates(true);
+    setImageSuggestions([]);
     try {
       const res = await fetch("/api/rewrite", {
         method: "POST",
@@ -203,7 +217,7 @@ export default function Home() {
         body: JSON.stringify({
           model,
           action: "suggest",
-          prompt: prompt.trim(),
+          prompt: currentInput.prompt,
           image: imageDataUrl,
           duration: model === "wan" ? wanDuration : 8,
           aspect: model === "grok" ? grokAspect : wanAspect,
@@ -212,6 +226,7 @@ export default function Home() {
       if (res.ok) {
         const data = await res.json();
         setImageSuggestions(data.suggestions || []);
+        lastSuggestInputRef.current = currentInput;
       }
     } catch {
       // Silently fail — suggestions are a nice-to-have

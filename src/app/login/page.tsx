@@ -35,7 +35,7 @@ export default function LoginPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen px-4">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-center mb-2">Welcome Back</h1>
+        <h1 className="text-2xl font-bold text-center mb-2">AI Image Magic</h1>
         <p className="text-center text-slate-400 mb-8">
           Sign in to your account
         </p>

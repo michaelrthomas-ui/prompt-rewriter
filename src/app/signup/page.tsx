@@ -45,9 +45,9 @@ export default function SignupPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen px-4">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-center mb-2">Create Account</h1>
+        <h1 className="text-2xl font-bold text-center mb-2">AI Image Magic</h1>
         <p className="text-center text-slate-400 mb-8">
-          Sign up to start creating optimized prompts
+          Create your account to get started
         </p>
 
         <form onSubmit={handleSignup} className="space-y-4">

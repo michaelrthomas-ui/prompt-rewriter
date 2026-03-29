@@ -7,10 +7,13 @@ MODEL VERSION: Grok Imagine 1.0 (February 2026), with Extend from Frame (March 2
 
 CRITICAL OUTPUT RULES — THE PROMPT YOU GENERATE MUST:
 - Be 50-150 words (the sweet spot). Never exceed 200 words.
-- Contain ONLY ONE primary action/motion. One subject + one main action + one camera move per prompt.
 - Front-load the most important details in the FIRST 20-30 words — Grok prioritizes the beginning.
 - Be written in natural language like a scene description, NOT keyword stacking.
-- If the user's idea involves multiple steps/actions, generate SEPARATE prompts for each step (labeled "Clip 1:", "Clip 2:", etc.) that can be chained using Extend from Frame. Each clip prompt must stand alone.
+- Structure as: Subject + Action + Setting + Camera + Lighting/Mood
+- For simple scenes: one subject + one main action + one camera move works best.
+- For multi-beat sequences: list actions in order. Grok handles sequential actions well.
+- Use "camera switch" or "cut to" for transition cues if needed.
+- End with an AUDIO: section describing sound (music, effects, ambient, dialogue).
 - Focus on ONE core concept per prompt (e.g. "loneliness in a snowy village" or "joy in a sunlit meadow")
 
 PROMPT STRUCTURE (5 layers — strong prompts touch at least 3):
@@ -21,11 +24,13 @@ PROMPT STRUCTURE (5 layers — strong prompts touch at least 3):
 5. Audio — what we hear (Grok generates native synchronized audio)
 
 IMAGE-TO-VIDEO SPECIFIC:
-- Since the image already establishes the scene, REDUCE or AVOID descriptions of static/unchanged parts
-- Keep it simple and direct — focus on what MOVES and how the CAMERA behaves
-- When the subject has prominent features, mention them to help position the subject (e.g. "an old man," "a woman wearing sunglasses")
+- Do NOT re-describe what's in the image — the model already sees it. Focus on MOTION and CAMERA.
+- Do NOT contradict the source image — match your prompt to what's actually there.
+- Focus on what should CHANGE: the action, the camera movement, the atmosphere.
+- Mention prominent features to anchor subjects: "the old man wearing glasses" or "the woman in the red jacket"
+- Be specific about motion intensity — the model can't infer degree of motion from a still image
+- The model CAN introduce new elements not in the image (people, creatures, objects entering the scene)
 - Community tip: darker/moodier base images tend to produce better I2V results
-- Image-first workflow often produces better results than straight text-to-video
 
 WHAT WORKS WELL:
 - "Shot on [Camera]" trick: "shot on Fujifilm XT4" or "shot on ARRI Alexa" gives better cinematic direction than "high quality"
@@ -37,21 +42,39 @@ WHAT WORKS WELL:
 - Atmosphere cues: "soft morning light," "autumn leaves," "rainy mood," time of day, weather, emotional energy
 - Artistic language: "bokeh," "wide-angle shot," "watercolor texture," "dreamlike haze"
 - Frame rate hints: 24fps for cinematic, 30fps for natural motion, 60fps for slow-motion
-- Audio cues: Grok generates NATIVE synchronized AUDIO with every video. Always include audio direction: "upbeat synth track," "ambient rain sounds," "epic orchestral swell," "silence," "no music" (otherwise Grok adds generic background music by default)
-- Use positive descriptions only — describe what IS there, not what isn't
+- Audio cues: Grok generates NATIVE synchronized AUDIO with every video. Always include audio direction. You can add a separate "AUDIO:" section at the end of the prompt for clarity.
+- Dialogue and lip-sync: Grok handles lip-sync for dialogue and singing. Use short dialogue in prompts: "a quiet whisper: 'We made it.'"
+- Use positive descriptions only — negative prompts are completely ignored by Grok. Describe what you want, never what you don't want.
+
+MULTI-BEAT SEQUENCES:
+- Grok handles multi-beat action sequences well. List actions in order: "The athlete crouches at the starting line, then explodes forward, arms pumping powerfully."
+- You can describe actions for multiple subjects: "The teacher lectures in the background while the student turns away in the foreground."
+- Use "camera switch" or "cut to" for transition cues between shots within one generation.
+
+AUDIO CAPABILITIES:
+- Grok generates audio NATIVELY alongside video — music, sound effects, ambient audio, and even dialogue/voiceover.
+- Lip-sync works for dialogue and singing when characters are visible.
+- You can add an "AUDIO:" section at the end of prompts for clarity.
+- Short dialogue works: "a quiet whisper: 'We made it.'" or "urgent shout: 'Stop him!'"
+- Background music: "with upbeat electronic music" or "dramatic orchestral score"
+- Sound effects: "footsteps on gravel," "engine revving," "glass shattering"
+
+INTENSITY MODIFIERS — USE THEM:
+- Without modifiers, Grok fills in its own interpretation which may be too subtle.
+- Exaggerate slightly: "car passing" → "car racing past at high speed"
+- "wings flapping" → "wings flapping with massive amplitude"
+- Use specific action verbs: "surges," "unfurls," "shatters," "drifts" beat "moves" or "goes"
 
 WHAT CONFUSES GROK / WHAT TO AVOID:
-- MULTIPLE ACTIONS IN ONE PROMPT — this is the #1 mistake. Break complex sequences into separate clips.
-- Multiple subjects doing different things — the model struggles to track independent motions
-- Abstract or metaphorical prompts — literal descriptions work far better
-- Negation — "no clouds" may still produce clouds. Always use positive descriptions instead.
+- Re-describing the image in image-to-video mode — the model already sees it, focus on MOTION
+- Contradicting the source image — match your prompt to what's actually in the photo
+- Tag stacking ("knight, castle, epic, 8K, cinematic") — write natural sentences with intent instead
+- Negative prompts — they are IGNORED completely. Describe what you want instead.
 - Fine temporal control — "at 2 seconds, the ball bounces" does NOT work
-- Rapid scene changes — the model produces one continuous shot, not cuts
-- Text rendering in video — virtually guaranteed to be garbled
-- Complex compound prompts like "cyberpunk city with raining streets and neon signs" cause style shifts and glitches
+- Text rendering in video — new text generated by the model is virtually guaranteed to be garbled (but existing text in the source image persists, and can be read aloud via voice)
 - Overly long prompts — results in hazy subjects, odd proportions, misplaced objects
 - Contradictory instructions ("zoom in and zoom out simultaneously")
-- Fast pans, too many moving objects, or overly complex physics — reduce complexity if motion looks unstable
+- Vague motion — "the thing moves" is bad. Use specific verbs with intensity modifiers.
 
 TECHNICAL SPECS (as of March 2026):
 - Output duration: up to 10 seconds per clip in-app (15 seconds via API)
@@ -458,11 +481,12 @@ The user's main concept/action MUST appear in the generated prompt. NEVER remove
 FORMATTING RULES FOR THE OUTPUT PROMPT:
 - Write ONE single prompt. Do NOT split into multiple clips unless the user specifically asked for it.
 - The prompt must be 50-150 words. Never exceed 200 words.
-- The prompt must contain only ONE primary action that fits in ${clipDuration} seconds.
 - Front-load the key subject and action in the first 20-30 words.
-- Include at least 3 of the 5 layers: scene, camera, style/lighting, motion, audio.
-- Use specific action verbs and cinematic language.
-- Use positive descriptions only (never "no X" or "without X").
+- Structure as: Subject + Action + Setting + Camera + Lighting/Mood, then end with AUDIO: section.
+- Use specific action verbs with intensity modifiers ("surges," "unfurls," "shatters" not "moves").
+- Use positive descriptions only — negative prompts are completely IGNORED by ${modelName}.
+- For multi-beat action, list actions in order. Use "camera switch" or "cut to" for transitions.
+- Always end with "AUDIO:" section describing music, sound effects, ambient sounds, and/or dialogue.
 
 COMPLEXITY CHECK: If the user's idea involves WAY too much action for a single ${clipDuration}-second clip, add a note at the very end on a new line starting with "⚠️ TIP:" suggesting the action might be a lot for ${clipDuration} seconds, and the user could split this into separate clip prompts for better results. Do NOT mention "Extend from Frame" or any specific tool features. But STILL write the single prompt above the tip — let the user decide if they want to split it.
 
@@ -676,22 +700,24 @@ Analyze their prompt and determine:
 4. Are there any parts that will likely fail or produce poor results?
 
 KNOWN ${modelName} LIMITATIONS:
-- Cannot generate NEW legible text, words, or captions on screen — any new text appears garbled (but CAN read existing text aloud via voice/audio)
-- Cannot do scene changes or transitions — it produces one continuous ${clipDuration}-second clip
-- Struggles with detailed hand/finger close-ups (often distorted)
-- Dense crowds with many people lose coherence
-- Complex physics simulations or extreme transformations often fail
-- Cannot produce multiple independent actions simultaneously
-- Video is only ${clipDuration} seconds — overly complex sequences won't fit
+- Cannot generate NEW legible text on screen — any new text appears garbled
+- Faces and hands can warp or distort, especially with movement
+- Negative prompts are completely IGNORED — describe what you want, not what you don't
+- Fine temporal control doesn't work ("at 2 seconds, X happens")
+- Overly long prompts cause hazy subjects and odd proportions
+- Video is ${clipDuration} seconds — keep action realistic for that duration
 
 THINGS ${modelName} CAN DO:
 - Introduce NEW elements not in the original image (creatures, people, objects emerging/appearing)
-- Speaking, talking, lip movement, dialogue-like motion
-- Camera movements (pan, zoom, tilt, tracking)
+- Multi-beat action sequences — list actions in order and Grok handles them well
+- Scene transitions using "camera switch" or "cut to" cues
+- Speaking, talking, lip-sync for dialogue AND singing
+- Short dialogue: "a whisper: 'We made it.'" or "shout: 'Stop!'"
+- All standard camera movements (pan, tilt, dolly, tracking, orbit, aerial, handheld)
+- Native synchronized audio — music, sound effects, ambient sounds, voiceover
 - Natural motion (wind, water, fire, smoke, hair, clothing)
 - Character animation and body movement
 - Lighting changes, atmospheric effects
-- Audio generation (ambient sounds, effects)
 
 Return ONLY a JSON object (no markdown, no code blocks):
 If the prompt is good as-is: {"status":"good","message":"Brief encouraging feedback about why this will work well"}
@@ -718,16 +744,22 @@ Keep the message to 1-2 sentences. Be helpful, not discouraging.`;
       }
 
       const modelLimitations = model === "grok"
-        ? `IMPORTANT ${modelName} LIMITATIONS — every suggestion MUST follow these rules:
-- Only ONE simple motion/action per suggestion. No complex multi-step sequences.
-- Keep camera movements simple and achievable (slow pan, gentle push-in, static shot with subject motion). NO dramatic crane shots, rapid zooms, or complex aerial moves.
-- ${modelName} handles subtle, grounded motions best — gentle swaying, slow camera drifts, natural movements.
-- Avoid overly ambitious suggestions that would require multiple camera moves or rapid scene changes.
-- Each suggestion must be something ${modelName} can realistically produce well in ${clipDuration} seconds.`
-        : `IMPORTANT ${modelName} LIMITATIONS — every suggestion MUST follow these rules:
+        ? `IMPORTANT ${modelName} GUIDELINES — every suggestion MUST follow these rules:
+- Structure as: Subject + Action + Setting + Camera + Lighting/Mood.
+- ${modelName} handles multi-beat sequences well — list actions in order.
+- Use standard cinematic camera language (pan, tilt, dolly, tracking, orbit, aerial, handheld, slow push-in, static).
+- Use "camera switch" or "cut to" for transition cues if the scene needs it.
+- Use specific action verbs with intensity modifiers — "surges," "unfurls," "shatters" beat "moves."
+- ${modelName} generates native audio — include sound direction (music, effects, ambient, even short dialogue with lip-sync).
+- End with an AUDIO: section.
+- Do NOT re-describe the image — focus on what MOVES and CHANGES.
+- Do NOT use negative prompts — they are ignored. Describe what you want instead.
+- Each suggestion must fit within ${clipDuration} seconds realistically.`
+        : `IMPORTANT ${modelName} GUIDELINES — every suggestion MUST follow these rules:
 - Only ONE primary motion/action per suggestion.
 - Keep motions realistic and achievable for a ${clipDuration}-second clip.
 - ${modelName} works best with clear, direct motion descriptions.
+- Use specific action verbs with intensity modifiers.
 - Avoid overly complex physics or multiple independent moving subjects.`;
 
       const textPrompt = `${expertise}

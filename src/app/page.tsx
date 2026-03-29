@@ -891,73 +891,99 @@ export default function Home() {
               />
             </div>
 
-            {/* Suggestions toggle */}
-            <div className="flex justify-center mb-4">
-              <button
-                onClick={() => {
-                  if (!imageDataUrl) return;
-                  if (showTemplates) {
-                    setShowTemplates(false);
-                  } else if (imageSuggestions.length > 0) {
-                    setShowTemplates(true);
-                  } else {
-                    fetchImageSuggestions();
-                  }
-                }}
-                className={`text-sm transition-colors ${imageDataUrl ? "text-indigo-400 hover:text-indigo-300 cursor-pointer" : "text-slate-600 cursor-not-allowed"}`}
-              >
-                {loadingSuggestions
-                  ? "Analyzing your image..."
-                  : showTemplates
-                  ? "Hide suggestions"
-                  : imageDataUrl
-                  ? "Not sure what to type? Get AI suggestions for your image"
-                  : "Upload an image to see suggestions"}
-              </button>
-            </div>
-
-            {/* AI-generated suggestions grid */}
-            {showTemplates && imageSuggestions.length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Suggested prompts for your image</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {imageSuggestions.map((t, i) => (
-                    <div
-                      key={`sug-${i}`}
-                      className="p-3 rounded-lg bg-slate-800 border border-slate-700/50"
-                    >
-                      <span className="text-xs text-indigo-400 font-medium">{t.category}</span>
-                      <p className="text-slate-400 text-xs mt-1">{t.prompt}</p>
-                      <div className="flex gap-2 mt-3">
-                        <button
-                          onClick={() => handleUseSuggestion(t.prompt)}
-                          className="px-3 py-1.5 rounded-md text-xs font-medium bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/40 transition-colors cursor-pointer"
-                        >
-                          Use This
-                        </button>
-                        <button
-                          onClick={() => handleExpandSuggestion(t.prompt)}
-                          className="px-3 py-1.5 rounded-md text-xs font-medium bg-slate-700/50 text-slate-300 hover:bg-slate-700 transition-colors cursor-pointer"
-                        >
-                          Expand on This
-                        </button>
-                      </div>
+            {/* Action buttons — two paths */}
+            {!showTemplates ? (
+              <>
+                {prompt.trim() ? (
+                  /* User has typed a prompt — show single action button */
+                  <button
+                    onClick={handleAnalyze}
+                    disabled={loading || !imageDataUrl}
+                    className="w-full py-3 rounded-lg font-semibold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                  >
+                    {loading ? loadingMessage : !imageDataUrl ? "Upload an image to get started" : "Let\u2019s Figure Out What You Want"}
+                  </button>
+                ) : (
+                  /* No prompt — show two clear options */
+                  <div className="space-y-3">
+                    <p className="text-center text-sm text-slate-400">
+                      {imageDataUrl ? "Choose how you\u2019d like to create your prompt" : "Upload an image to get started"}
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => {
+                          if (!imageDataUrl) return;
+                          if (imageSuggestions.length > 0) {
+                            setShowTemplates(true);
+                          } else {
+                            fetchImageSuggestions();
+                          }
+                        }}
+                        disabled={loading || loadingSuggestions || !imageDataUrl}
+                        className="py-4 px-4 rounded-lg font-semibold text-sm bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                      >
+                        {loadingSuggestions ? "Analyzing your image..." : "Give Me Prompt Ideas"}
+                        <span className="block text-xs font-normal text-indigo-200/70 mt-1">AI picks the best options</span>
+                      </button>
+                      <button
+                        onClick={handleAnalyze}
+                        disabled={loading || !imageDataUrl}
+                        className="py-4 px-4 rounded-lg font-semibold text-sm bg-gradient-to-r from-slate-700 to-slate-600 text-white hover:from-slate-600 hover:to-slate-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer border border-slate-600/50"
+                      >
+                        {loading ? loadingMessage : "Guide Me With Questions"}
+                        <span className="block text-xs font-normal text-slate-300/70 mt-1">Answer a few quick questions</span>
+                      </button>
                     </div>
-                  ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {/* AI-generated suggestions grid */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-slate-500 uppercase tracking-wide">Prompt ideas for your image</p>
+                    <button
+                      onClick={() => setShowTemplates(false)}
+                      className="text-xs text-slate-500 hover:text-slate-300 cursor-pointer transition-colors"
+                    >
+                      Back
+                    </button>
+                  </div>
+                  {imageSuggestions.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      {imageSuggestions.map((t, i) => (
+                        <div
+                          key={`sug-${i}`}
+                          className="p-3 rounded-lg bg-slate-800 border border-slate-700/50"
+                        >
+                          <span className="text-xs text-indigo-400 font-medium">{t.category}</span>
+                          <p className="text-slate-400 text-xs mt-1">{t.prompt}</p>
+                          <div className="flex gap-2 mt-3">
+                            <button
+                              onClick={() => handleUseSuggestion(t.prompt)}
+                              className="px-3 py-1.5 rounded-md text-xs font-medium bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/40 transition-colors cursor-pointer"
+                            >
+                              Use This
+                            </button>
+                            <button
+                              onClick={() => handleExpandSuggestion(t.prompt)}
+                              className="px-3 py-1.5 rounded-md text-xs font-medium bg-slate-700/50 text-slate-300 hover:bg-slate-700 transition-colors cursor-pointer"
+                            >
+                              Refine This
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-500 text-sm">
+                      {loadingSuggestions ? "Analyzing your image..." : "No suggestions available"}
+                    </div>
+                  )}
                 </div>
-              </div>
+              </>
             )}
-
-            {/* Action buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={handleAnalyze}
-                disabled={loading || !imageDataUrl}
-                className="flex-1 py-3 rounded-lg font-semibold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
-              >
-                {loading ? loadingMessage : !imageDataUrl ? "Upload an image to get started" : prompt.trim() ? "Let\u2019s Figure Out What You Want" : "Help Me Create a Prompt"}
-              </button>
-            </div>
 
           </>
         )}

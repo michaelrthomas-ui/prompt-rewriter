@@ -637,12 +637,19 @@ Return ONLY a JSON object (no markdown):
 You are checking whether a user's prompt idea will work well with ${modelName} image-to-video generation.
 
 The user wrote: "${prompt}"
-${image ? "They also uploaded a reference image (shown above)." : ""}
+${image ? `They uploaded the reference image shown above. This is the ACTUAL image they want to animate into a video.
+
+CRITICAL — CHECK THE PROMPT AGAINST THE IMAGE:
+- Look at what's actually IN the image (people, objects, setting, text, etc.)
+- Does the user's prompt match what's in the image? If they mention "a man" but there's no man visible, flag that.
+- If they reference text/words in the image, note that the AI model cannot make characters read or display legible text.
+- If their prompt describes things that aren't in the image at all, warn them.` : ""}
 
 Analyze their prompt and determine:
-1. Is this something ${modelName} can actually do well?
-2. Does the prompt make sense for image-to-video generation?
-3. Are there any parts that will likely fail or produce poor results?
+1. Does the prompt match what's actually in the uploaded image?
+2. Is this something ${modelName} can actually do well?
+3. Does the prompt make sense for image-to-video generation?
+4. Are there any parts that will likely fail or produce poor results?
 
 KNOWN ${modelName} LIMITATIONS:
 - Cannot render legible text, words, or captions in the video — any text appears garbled

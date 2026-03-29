@@ -666,6 +666,32 @@ export default function Home() {
           We&apos;ll figure out exactly what you want, then craft the perfect prompt
         </p>
 
+        {/* How it works guide */}
+        {step === "input" && (
+          <div className="mb-6 p-4 rounded-xl bg-slate-800/40 border border-slate-700/40">
+            <p className="text-sm font-semibold text-slate-200 mb-3 text-center">How to use this tool</p>
+            <div className="grid grid-cols-1 gap-3 text-sm">
+              <div className="flex gap-3">
+                <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">1</span>
+                <p className="text-slate-400"><span className="text-slate-200 font-medium">Choose your model</span> — Grok (8s clips) or Wan (5s or 10s clips), then pick your aspect ratio.</p>
+              </div>
+              <div className="flex gap-3">
+                <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">2</span>
+                <p className="text-slate-400"><span className="text-slate-200 font-medium">Upload an image</span> (optional) — this is the starting frame your video will animate from.</p>
+              </div>
+              <div className="flex gap-3">
+                <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">3</span>
+                <p className="text-slate-400"><span className="text-slate-200 font-medium">Describe your idea</span> — tell us what you want to happen in the video, even a rough idea works. Or leave it blank and we&apos;ll ask you questions to figure it out!</p>
+              </div>
+              <div className="flex gap-3">
+                <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">4</span>
+                <p className="text-slate-400"><span className="text-slate-200 font-medium">Click the button</span> — we&apos;ll ask a few quick questions, then generate an optimized prompt you can copy and paste directly into {model === "grok" ? "Grok" : "Wan"}.</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-3 text-center">Or skip all that and hit <span className="text-slate-400 font-medium">Surprise Me</span> for an instant creative prompt!</p>
+          </div>
+        )}
+
         {/* History button */}
         {history.length > 0 && step === "input" && (
           <div className="flex justify-center mb-4">

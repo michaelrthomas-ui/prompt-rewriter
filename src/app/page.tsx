@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 
 type Model = "grok" | "wan";
+type AspectRatio = "16:9" | "9:16";
 
 interface AnsweredQuestion {
   question: string;
@@ -17,6 +18,73 @@ interface PendingQuestion {
   useCustom: boolean;
 }
 
+interface PromptScores {
+  specificity: number;
+  camera: number;
+  motion: number;
+  lighting: number;
+  audio: number;
+}
+
+interface HistoryEntry {
+  id: string;
+  model: Model;
+  originalPrompt: string;
+  optimizedPrompt: string;
+  summary: string | null;
+  scores: PromptScores | null;
+  timestamp: number;
+  aspect?: AspectRatio;
+  duration?: number;
+}
+
+const TEMPLATES = [
+  { category: "Cinematic Nature", prompt: "A lone wolf standing on a snow-covered cliff at golden hour, wind blowing through its fur" },
+  { category: "Dramatic Action", prompt: "A vintage muscle car drifting around a rain-soaked city corner at night, headlights cutting through steam" },
+  { category: "Ethereal Portrait", prompt: "A woman with flowing silver hair standing in a field of lavender, petals swirling around her" },
+  { category: "Surreal Fantasy", prompt: "A giant whale swimming through clouds above a small mountain village at sunset" },
+  { category: "Product Shot", prompt: "A luxury watch sitting on a dark marble surface with water droplets slowly rolling off the crystal" },
+  { category: "Underwater", prompt: "A sea turtle gliding through a sunlit coral reef, schools of tropical fish scattering in its wake" },
+  { category: "Space / Sci-Fi", prompt: "An astronaut floating in front of a massive nebula, helmet visor reflecting swirling purple and gold gases" },
+  { category: "Abstract Art", prompt: "Liquid mercury and molten gold colliding in slow motion, forming intricate organic patterns" },
+];
+
+function getWordCount(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function getWordCountColor(count: number): string {
+  if (count <= 30) return "text-red-400";
+  if (count <= 49) return "text-amber-400";
+  if (count <= 150) return "text-emerald-400";
+  if (count <= 200) return "text-amber-400";
+  return "text-red-400";
+}
+
+function getWordCountLabel(count: number): string {
+  if (count <= 30) return "Too short";
+  if (count <= 49) return "A bit short";
+  if (count <= 150) return "Sweet spot";
+  if (count <= 200) return "Getting long";
+  return "Too long";
+}
+
+function loadHistory(): HistoryEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem("prompt-rewriter-history");
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(history: HistoryEntry[]) {
+  try {
+    localStorage.setItem("prompt-rewriter-history", JSON.stringify(history.slice(0, 50)));
+  } catch { /* storage full, ignore */ }
+}
+
 export default function Home() {
   const [model, setModel] = useState<Model>("grok");
   const [prompt, setPrompt] = useState("");
@@ -25,15 +93,27 @@ export default function Home() {
   const [answeredQuestions, setAnsweredQuestions] = useState<AnsweredQuestion[]>([]);
   const [pendingQuestions, setPendingQuestions] = useState<PendingQuestion[]>([]);
   const [rewritten, setRewritten] = useState("");
+  const [summary, setSummary] = useState<string | null>(null);
+  const [scores, setScores] = useState<PromptScores | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [error, setError] = useState("");
   const [step, setStep] = useState<"input" | "questions" | "result">("input");
   const [readyToGenerate, setReadyToGenerate] = useState(false);
   const [wanDuration, setWanDuration] = useState<5 | 10>(5);
-  const [grokAspect, setGrokAspect] = useState<"16:9" | "9:16">("16:9");
+  const [grokAspect, setGrokAspect] = useState<AspectRatio>("16:9");
+  const [wanAspect, setWanAspect] = useState<AspectRatio>("16:9");
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Load history on mount
+  useEffect(() => {
+    setHistory(loadHistory());
+  }, []);
 
   function resizeImage(file: File): Promise<string> {
     return new Promise((resolve) => {
@@ -96,6 +176,8 @@ export default function Home() {
     return "";
   }
 
+  const currentAspect = model === "grok" ? grokAspect : wanAspect;
+
   // Scroll to bottom when new content appears
   useEffect(() => {
     if (step === "questions") {
@@ -117,6 +199,8 @@ export default function Home() {
     setPendingQuestions([]);
     setAnsweredQuestions([]);
     setRewritten("");
+    setSummary(null);
+    setScores(null);
     setReadyToGenerate(false);
 
     try {
@@ -129,7 +213,7 @@ export default function Home() {
           prompt,
           image: imageDataUrl || undefined,
           duration: model === "wan" ? wanDuration : 8,
-          aspect: model === "grok" ? grokAspect : undefined,
+          aspect: currentAspect,
         }),
       });
 
@@ -201,7 +285,7 @@ export default function Home() {
           questions: allQuestions,
           image: imageDataUrl || undefined,
           duration: model === "wan" ? wanDuration : 8,
-          aspect: model === "grok" ? grokAspect : undefined,
+          aspect: currentAspect,
         }),
       });
 
@@ -222,7 +306,7 @@ export default function Home() {
       setLoading(false);
       setLoadingMessage("");
     }
-  }, [model, prompt, imageDataUrl]);
+  }, [model, prompt, imageDataUrl, wanDuration, currentAspect]);
 
   // Auto-continue: when all questions are answered and AI isn't ready yet, auto-fetch more
   const autoFetchTriggered = useRef(false);
@@ -238,6 +322,23 @@ export default function Home() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allAnswered, loading, step, readyToGenerate]);
+
+  function addToHistory(optimizedPrompt: string, sum: string | null, sc: PromptScores | null) {
+    const entry: HistoryEntry = {
+      id: Date.now().toString(),
+      model,
+      originalPrompt: prompt,
+      optimizedPrompt,
+      summary: sum,
+      scores: sc,
+      timestamp: Date.now(),
+      aspect: currentAspect,
+      duration: model === "wan" ? wanDuration : 8,
+    };
+    const updated = [entry, ...history].slice(0, 50);
+    setHistory(updated);
+    saveHistory(updated);
+  }
 
   async function handleGenerate() {
     setLoading(true);
@@ -257,7 +358,7 @@ export default function Home() {
           questions: allQuestions,
           image: imageDataUrl || undefined,
           duration: model === "wan" ? wanDuration : 8,
-          aspect: model === "grok" ? grokAspect : undefined,
+          aspect: currentAspect,
         }),
       });
 
@@ -268,8 +369,51 @@ export default function Home() {
 
       const data = await res.json();
       setRewritten(data.rewritten);
+      setSummary(data.summary || null);
+      setScores(data.scores || null);
       setAnsweredQuestions(allQuestions);
       setStep("result");
+      addToHistory(data.rewritten, data.summary || null, data.scores || null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+      setLoadingMessage("");
+    }
+  }
+
+  async function handleSurpriseMe() {
+    setLoading(true);
+    setLoadingMessage("Cooking up something creative...");
+    setError("");
+    setPendingQuestions([]);
+    setAnsweredQuestions([]);
+    setSummary(null);
+    setScores(null);
+
+    try {
+      const res = await fetch("/api/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          action: "surprise",
+          prompt: "surprise",
+          duration: model === "wan" ? wanDuration : 8,
+          aspect: currentAspect,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to generate surprise prompt");
+      }
+
+      const data = await res.json();
+      setRewritten(data.rewritten);
+      setPrompt("");
+      setStep("result");
+      addToHistory(data.rewritten, `Random ${data.category || "creative"} prompt generated`, null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -291,11 +435,38 @@ export default function Home() {
     setAnsweredQuestions([]);
     setPendingQuestions([]);
     setRewritten("");
+    setSummary(null);
+    setScores(null);
     setError("");
     setReadyToGenerate(false);
     setStep("input");
     autoFetchTriggered.current = false;
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleUseTemplate(templatePrompt: string) {
+    setPrompt(templatePrompt);
+    setShowTemplates(false);
+  }
+
+  function handleLoadFromHistory(entry: HistoryEntry) {
+    setModel(entry.model);
+    setRewritten(entry.optimizedPrompt);
+    setSummary(entry.summary);
+    setScores(entry.scores);
+    setPrompt(entry.originalPrompt);
+    if (entry.aspect) {
+      if (entry.model === "grok") setGrokAspect(entry.aspect);
+      else setWanAspect(entry.aspect);
+    }
+    setStep("result");
+    setShowHistory(false);
+  }
+
+  function handleDeleteHistory(id: string) {
+    const updated = history.filter((h) => h.id !== id);
+    setHistory(updated);
+    saveHistory(updated);
   }
 
   // Separate the prompt from any TIP line
@@ -311,9 +482,12 @@ export default function Home() {
   }
 
   const { prompt: cleanPrompt, tip: promptTip } = getPromptAndTip(rewritten);
+  const wordCount = getWordCount(cleanPrompt);
 
   function handleCopy() {
     navigator.clipboard.writeText(cleanPrompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   async function handleSplitIntoClips() {
@@ -334,7 +508,7 @@ export default function Home() {
           questions: allQuestions,
           image: imageDataUrl || undefined,
           duration: model === "wan" ? wanDuration : 8,
-          aspect: model === "grok" ? grokAspect : undefined,
+          aspect: currentAspect,
         }),
       });
 
@@ -345,6 +519,8 @@ export default function Home() {
 
       const data = await res.json();
       setRewritten(data.rewritten);
+      setSummary(null);
+      setScores(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -352,6 +528,24 @@ export default function Home() {
       setLoadingMessage("");
     }
   }
+
+  // Score bar component
+  const ScoreBar = ({ label, value }: { label: string; value: number }) => (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-slate-400 w-20 shrink-0">{label}</span>
+      <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${
+            value >= 8 ? "bg-emerald-500" : value >= 5 ? "bg-amber-500" : "bg-red-500"
+          }`}
+          style={{ width: `${value * 10}%` }}
+        />
+      </div>
+      <span className={`text-xs font-bold w-6 text-right ${
+        value >= 8 ? "text-emerald-400" : value >= 5 ? "text-amber-400" : "text-red-400"
+      }`}>{value}</span>
+    </div>
+  );
 
   // Shared image thumbnail component
   const ImageThumbnail = () =>
@@ -371,15 +565,103 @@ export default function Home() {
       </div>
     ) : null;
 
+  // Aspect ratio selector component (shared between Grok and Wan)
+  const AspectSelector = ({ value, onChange, variant }: { value: AspectRatio; onChange: (v: AspectRatio) => void; variant: "indigo" | "purple" }) => {
+    const activeClass = variant === "indigo"
+      ? "bg-indigo-600/80 text-white shadow-lg shadow-indigo-500/20"
+      : "bg-purple-600/80 text-white shadow-lg shadow-purple-500/20";
+    return (
+      <div className="flex gap-2 items-center">
+        <span className="text-slate-400 text-sm mr-2">Format:</span>
+        <button
+          onClick={() => onChange("16:9")}
+          className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
+            value === "16:9" ? activeClass : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+          }`}
+        >
+          16:9 Wide
+        </button>
+        <button
+          onClick={() => onChange("9:16")}
+          className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
+            value === "9:16" ? activeClass : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+          }`}
+        >
+          9:16 Vertical
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col items-center min-h-screen px-4 py-12">
       <div className="w-full max-w-2xl">
         <h1 className="text-3xl font-bold text-center mb-2">
           AI Video Prompt Rewriter
         </h1>
-        <p className="text-center text-slate-400 mb-8">
+        <p className="text-center text-slate-400 mb-4">
           We&apos;ll figure out exactly what you want, then craft the perfect prompt
         </p>
+
+        {/* History button */}
+        {history.length > 0 && step === "input" && (
+          <div className="flex justify-center mb-4">
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="text-sm text-slate-400 hover:text-slate-200 cursor-pointer transition-colors"
+            >
+              {showHistory ? "Hide History" : `View History (${history.length})`}
+            </button>
+          </div>
+        )}
+
+        {/* History panel */}
+        {showHistory && step === "input" && (
+          <div className="mb-6 p-4 rounded-lg bg-slate-800/50 border border-slate-700/50 max-h-80 overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-slate-500 uppercase tracking-wide">Recent Prompts</span>
+              <button
+                onClick={() => { setHistory([]); saveHistory([]); setShowHistory(false); }}
+                className="text-xs text-red-400 hover:text-red-300 cursor-pointer"
+              >
+                Clear All
+              </button>
+            </div>
+            <div className="space-y-2">
+              {history.map((entry) => (
+                <div key={entry.id} className="p-3 rounded-lg bg-slate-900/50 border border-slate-700/30 group">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleLoadFromHistory(entry)}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                          entry.model === "grok" ? "bg-indigo-600/30 text-indigo-400" : "bg-purple-600/30 text-purple-400"
+                        }`}>
+                          {entry.model.toUpperCase()}
+                        </span>
+                        {entry.aspect && (
+                          <span className="text-xs text-slate-500">{entry.aspect}</span>
+                        )}
+                        <span className="text-xs text-slate-600">
+                          {new Date(entry.timestamp).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-slate-300 text-sm line-clamp-2">{entry.optimizedPrompt}</p>
+                      {entry.originalPrompt && (
+                        <p className="text-slate-500 text-xs mt-1 truncate">From: &ldquo;{entry.originalPrompt}&rdquo;</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteHistory(entry.id); }}
+                      className="text-slate-600 hover:text-red-400 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Model selector */}
         <div className="flex gap-3 mb-6 justify-center">
@@ -405,59 +687,40 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Wan duration selector */}
+        {/* Wan duration + aspect ratio selector */}
         {model === "wan" && step === "input" && (
-          <div className="flex gap-2 mb-6 justify-center">
-            <span className="text-slate-400 text-sm self-center mr-2">Duration:</span>
-            <button
-              onClick={() => setWanDuration(5)}
-              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-                wanDuration === 5
-                  ? "bg-purple-600/80 text-white shadow-lg shadow-purple-500/20"
-                  : "bg-slate-800 text-slate-400 hover:bg-slate-700"
-              }`}
-            >
-              5 seconds
-            </button>
-            <button
-              onClick={() => setWanDuration(10)}
-              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-                wanDuration === 10
-                  ? "bg-purple-600/80 text-white shadow-lg shadow-purple-500/20"
-                  : "bg-slate-800 text-slate-400 hover:bg-slate-700"
-              }`}
-            >
-              10 seconds
-            </button>
+          <div className="flex flex-col items-center gap-3 mb-6">
+            <div className="flex gap-2 items-center">
+              <span className="text-slate-400 text-sm mr-2">Duration:</span>
+              <button
+                onClick={() => setWanDuration(5)}
+                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
+                  wanDuration === 5
+                    ? "bg-purple-600/80 text-white shadow-lg shadow-purple-500/20"
+                    : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                }`}
+              >
+                5 seconds
+              </button>
+              <button
+                onClick={() => setWanDuration(10)}
+                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
+                  wanDuration === 10
+                    ? "bg-purple-600/80 text-white shadow-lg shadow-purple-500/20"
+                    : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                }`}
+              >
+                10 seconds
+              </button>
+            </div>
+            <AspectSelector value={wanAspect} onChange={setWanAspect} variant="purple" />
           </div>
         )}
 
         {/* Grok aspect ratio selector */}
         {model === "grok" && step === "input" && (
           <div className="flex flex-col items-center gap-2 mb-6">
-            <div className="flex gap-2 items-center">
-              <span className="text-slate-400 text-sm mr-2">Format:</span>
-              <button
-                onClick={() => setGrokAspect("16:9")}
-                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-                  grokAspect === "16:9"
-                    ? "bg-indigo-600/80 text-white shadow-lg shadow-indigo-500/20"
-                    : "bg-slate-800 text-slate-400 hover:bg-slate-700"
-                }`}
-              >
-                16:9 Wide
-              </button>
-              <button
-                onClick={() => setGrokAspect("9:16")}
-                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${
-                  grokAspect === "9:16"
-                    ? "bg-indigo-600/80 text-white shadow-lg shadow-indigo-500/20"
-                    : "bg-slate-800 text-slate-400 hover:bg-slate-700"
-                }`}
-              >
-                9:16 Vertical
-              </button>
-            </div>
+            <AspectSelector value={grokAspect} onChange={setGrokAspect} variant="indigo" />
             <p className="text-slate-500 text-xs">Grok generates ~8 second clips</p>
           </div>
         )}
@@ -519,12 +782,14 @@ export default function Home() {
 
             {/* Prompt input */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Describe what you want to create
-                {imageDataUrl && (
-                  <span className="text-slate-500 font-normal"> — or leave blank and we&apos;ll help you figure it out</span>
-                )}
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-slate-300">
+                  Describe what you want to create
+                  {imageDataUrl && (
+                    <span className="text-slate-500 font-normal"> — or leave blank and we&apos;ll help you figure it out</span>
+                  )}
+                </label>
+              </div>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
@@ -540,8 +805,35 @@ export default function Home() {
               />
             </div>
 
-            {imageDataUrl && !prompt.trim() ? (
-              <div className="flex gap-3">
+            {/* Templates toggle */}
+            <div className="flex justify-center mb-4">
+              <button
+                onClick={() => setShowTemplates(!showTemplates)}
+                className="text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer transition-colors"
+              >
+                {showTemplates ? "Hide Templates" : "Need inspiration? Try a template"}
+              </button>
+            </div>
+
+            {/* Templates grid */}
+            {showTemplates && (
+              <div className="mb-4 grid grid-cols-2 gap-2">
+                {TEMPLATES.map((t, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleUseTemplate(t.prompt)}
+                    className="p-3 rounded-lg bg-slate-800 border border-slate-700/50 hover:border-indigo-500/50 hover:bg-slate-800/80 text-left transition-all cursor-pointer group"
+                  >
+                    <span className="text-xs text-indigo-400 font-medium">{t.category}</span>
+                    <p className="text-slate-400 text-xs mt-1 line-clamp-2 group-hover:text-slate-300">{t.prompt}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex gap-3">
+              {imageDataUrl && !prompt.trim() ? (
                 <button
                   onClick={handleAnalyze}
                   disabled={loading}
@@ -549,16 +841,25 @@ export default function Home() {
                 >
                   {loading ? loadingMessage : "Help Me Create a Prompt"}
                 </button>
-              </div>
-            ) : (
-              <button
-                onClick={handleAnalyze}
-                disabled={loading || (!prompt.trim() && !imageDataUrl)}
-                className="w-full py-3 rounded-lg font-semibold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
-              >
-                {loading ? loadingMessage : "Let\u2019s Figure Out What You Want"}
-              </button>
-            )}
+              ) : (
+                <button
+                  onClick={handleAnalyze}
+                  disabled={loading || (!prompt.trim() && !imageDataUrl)}
+                  className="flex-1 py-3 rounded-lg font-semibold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                >
+                  {loading ? loadingMessage : "Let\u2019s Figure Out What You Want"}
+                </button>
+              )}
+            </div>
+
+            {/* Surprise me button */}
+            <button
+              onClick={handleSurpriseMe}
+              disabled={loading}
+              className="w-full mt-3 py-2 rounded-lg font-semibold text-sm bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 disabled:opacity-50 transition-all cursor-pointer border border-slate-700/50"
+            >
+              {loading ? loadingMessage : "Surprise Me — Random Creative Prompt"}
+            </button>
           </>
         )}
 
@@ -741,43 +1042,54 @@ export default function Home() {
             {/* Show image if uploaded */}
             <ImageThumbnail />
 
-            {/* Show original prompt */}
-            {prompt.trim() ? (
+            {/* Before / After comparison */}
+            {prompt.trim() && (
               <div className="mb-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                <span className="text-xs text-slate-500 uppercase tracking-wide">Your idea</span>
-                <p className="text-slate-300 mt-1">{prompt}</p>
+                <span className="text-xs text-slate-500 uppercase tracking-wide">Your original idea</span>
+                <p className="text-slate-400 mt-1 text-sm">{prompt}</p>
               </div>
-            ) : imageDataUrl ? (
+            )}
+            {!prompt.trim() && imageDataUrl && (
               <div className="mb-4 p-3 rounded-lg bg-indigo-900/30 border border-indigo-700/50">
                 <span className="text-xs text-indigo-400 uppercase tracking-wide">Built from your image</span>
                 <p className="text-slate-300 mt-1">Prompt created based on your image and answers</p>
               </div>
-            ) : null}
+            )}
 
-            {/* Show Q&A summary */}
-            {answeredQuestions.length > 0 && (
-              <div className="mb-4 space-y-2">
-                <span className="text-xs text-slate-500 uppercase tracking-wide">
-                  What we learned ({answeredQuestions.length} questions answered)
-                </span>
-                {answeredQuestions.map((q, i) => (
-                  <div key={`result-q-${i}`} className="flex items-start gap-3 p-2 rounded-lg bg-slate-800/30 border border-slate-700/30">
-                    <span className={`px-2 py-0.5 rounded text-xs font-bold shrink-0 mt-0.5 ${
-                      q.answer === "Yes" ? "bg-emerald-600/30 text-emerald-400"
-                        : q.answer === "No" ? "bg-red-600/30 text-red-400"
-                        : "bg-blue-600/30 text-blue-400"
-                    }`}>
-                      {q.answer.length <= 3 ? q.answer.toUpperCase() : "CUSTOM"}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-slate-400 text-sm">{q.question}</span>
-                      {q.answer.length > 3 && (
-                        <p className="text-slate-300 text-sm mt-1 italic">&ldquo;{q.answer}&rdquo;</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+            {/* What Changed summary */}
+            {summary && (
+              <div className="mb-4 p-3 rounded-lg bg-blue-900/20 border border-blue-700/40">
+                <span className="text-xs text-blue-400 uppercase tracking-wide">What we improved</span>
+                <p className="text-slate-300 mt-1 text-sm">{summary}</p>
               </div>
+            )}
+
+            {/* Show Q&A summary (collapsed) */}
+            {answeredQuestions.length > 0 && (
+              <details className="mb-4">
+                <summary className="text-xs text-slate-500 uppercase tracking-wide cursor-pointer hover:text-slate-400">
+                  Show Q&A ({answeredQuestions.length} questions answered)
+                </summary>
+                <div className="mt-2 space-y-2">
+                  {answeredQuestions.map((q, i) => (
+                    <div key={`result-q-${i}`} className="flex items-start gap-3 p-2 rounded-lg bg-slate-800/30 border border-slate-700/30">
+                      <span className={`px-2 py-0.5 rounded text-xs font-bold shrink-0 mt-0.5 ${
+                        q.answer === "Yes" ? "bg-emerald-600/30 text-emerald-400"
+                          : q.answer === "No" ? "bg-red-600/30 text-red-400"
+                          : "bg-blue-600/30 text-blue-400"
+                      }`}>
+                        {q.answer.length <= 3 ? q.answer.toUpperCase() : "CUSTOM"}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-slate-400 text-sm">{q.question}</span>
+                        {q.answer.length > 3 && (
+                          <p className="text-slate-300 text-sm mt-1 italic">&ldquo;{q.answer}&rdquo;</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </details>
             )}
 
             {/* Optimized prompt */}
@@ -786,17 +1098,49 @@ export default function Home() {
                 <label className="text-sm font-medium text-emerald-400">
                   Your Optimized Prompt
                 </label>
-                <button
-                  onClick={handleCopy}
-                  className="text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer"
-                >
-                  Copy to clipboard
-                </button>
+                <div className="flex items-center gap-3">
+                  {/* Word count */}
+                  <span className={`text-xs font-medium ${getWordCountColor(wordCount)}`}>
+                    {wordCount} words &middot; {getWordCountLabel(wordCount)}
+                  </span>
+                  <button
+                    onClick={handleCopy}
+                    className="text-sm text-indigo-400 hover:text-indigo-300 cursor-pointer transition-colors"
+                  >
+                    {copied ? "Copied!" : "Copy to clipboard"}
+                  </button>
+                </div>
               </div>
               <div className="rounded-lg bg-slate-800 border border-emerald-700/50 px-4 py-3 text-white whitespace-pre-wrap">
                 {cleanPrompt}
               </div>
             </div>
+
+            {/* Prompt Scores */}
+            {scores && (
+              <div className="mt-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                <span className="text-xs text-slate-500 uppercase tracking-wide mb-2 block">Prompt Quality Score</span>
+                <div className="space-y-1.5">
+                  <ScoreBar label="Specificity" value={scores.specificity} />
+                  <ScoreBar label="Camera" value={scores.camera} />
+                  <ScoreBar label="Motion" value={scores.motion} />
+                  <ScoreBar label="Lighting" value={scores.lighting} />
+                  <ScoreBar label="Audio" value={scores.audio} />
+                </div>
+                <div className="mt-2 pt-2 border-t border-slate-700/50 flex items-center justify-between">
+                  <span className="text-xs text-slate-400">Overall</span>
+                  <span className={`text-sm font-bold ${
+                    (scores.specificity + scores.camera + scores.motion + scores.lighting + scores.audio) / 5 >= 8
+                      ? "text-emerald-400"
+                      : (scores.specificity + scores.camera + scores.motion + scores.lighting + scores.audio) / 5 >= 5
+                      ? "text-amber-400"
+                      : "text-red-400"
+                  }`}>
+                    {((scores.specificity + scores.camera + scores.motion + scores.lighting + scores.audio) / 5).toFixed(1)}/10
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* TIP shown outside the copy area */}
             {promptTip && (
@@ -817,6 +1161,8 @@ export default function Home() {
               <button
                 onClick={() => {
                   setRewritten("");
+                  setSummary(null);
+                  setScores(null);
                   setPendingQuestions([]);
                   setStep("questions");
                   autoFetchTriggered.current = false;

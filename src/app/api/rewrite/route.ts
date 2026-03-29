@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
     }
 
     const clipDuration = model === "grok" ? 8 : (duration === 10 ? 10 : 5);
-    const aspectRatio = model === "grok" ? (aspect === "9:16" ? "9:16" : "16:9") : null;
+    const aspectRatio = aspect === "9:16" ? "9:16" : (aspect === "16:9" ? "16:9" : null);
 
     const modelName = model === "grok" ? "Grok" : "Wan";
     const expertise = model === "grok" ? GROK_EXPERTISE : WAN_EXPERTISE;
@@ -456,10 +456,34 @@ COMPLEXITY CHECK: If the user's idea involves WAY too much action for a single $
 
 ${image ? `CRITICAL: The prompt MUST describe how the uploaded image should ANIMATE into video. Describe motion, camera movement, and changes — NOT dialogue or text overlays. If the user's original prompt contained text they wanted spoken, translate that intent into visual actions (e.g. a person's lips moving naturally, confident body language, hand gestures) that ${modelName} can actually render.` : ""}
 
-Return ONLY the final prompt, nothing else. No explanations, no commentary, no quotes around it. (Exception: the ⚠️ TIP line if needed.)`;
+Return ONLY a JSON object with this exact format (no markdown, no code blocks):
+{"prompt":"the optimized prompt text here","summary":"1-2 sentence summary of what was improved from the original idea","scores":{"specificity":8,"camera":7,"motion":9,"lighting":6,"audio":5}}
 
-      const rewritten = await callKieAI(buildContent(textPrompt, image));
-      return Response.json({ rewritten });
+RULES FOR THE JSON:
+- "prompt" contains the full optimized prompt text. If there's a complexity tip, add it on a new line starting with "⚠️ TIP:" INSIDE the prompt field.
+- "summary" is 1-2 sentences explaining what you improved, enhanced, or added compared to the user's original idea. Be specific about what was changed. If there was no original prompt (image-only mode), describe the creative choices you made.
+- "scores" rates the prompt quality on 5 dimensions, each 1-10:
+  - specificity: How specific and detailed is the scene description?
+  - camera: How well-defined is the camera work?
+  - motion: How clearly is the motion/action described?
+  - lighting: How well is the lighting/atmosphere specified?
+  - audio: How detailed is the audio direction?`;
+
+      const text = await callKieAI(buildContent(textPrompt, image));
+
+      // Try to parse as JSON for structured response
+      try {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);
+        return Response.json({
+          rewritten: parsed.prompt || text,
+          summary: parsed.summary || null,
+          scores: parsed.scores || null,
+        });
+      } catch {
+        // Fallback: treat as plain text (backward compatible)
+        return Response.json({ rewritten: text });
+      }
 
     } else if (action === "split") {
       const clipDuration = duration || (model === "wan" ? 5 : 8);
@@ -485,8 +509,42 @@ Return ONLY the clip prompts with their labels. No explanations or commentary.`;
       const rewritten = await callKieAI(textPrompt);
       return Response.json({ rewritten });
 
+    } else if (action === "surprise") {
+      const textPrompt = `${expertise}
+
+Generate a RANDOM, creative, and visually stunning image-to-video prompt for ${modelName}. Surprise the user with something they wouldn't think of themselves.
+
+Pick a random category: cinematic nature, dramatic action, ethereal portrait, surreal/fantasy, product shot, architectural, underwater, space/sci-fi, historical moment, or abstract art.
+
+${aspectRatio ? `ASPECT RATIO: ${aspectRatio} format. ${aspectRatio === "16:9" ? "Optimize for wide/landscape cinematic compositions." : "Optimize for vertical/portrait phone-screen compositions."}` : ""}
+
+DURATION: Design for ${clipDuration} seconds of action.
+
+Requirements:
+- 80-120 words
+- ONE primary action that fits in ${clipDuration} seconds
+- Front-load the subject and action
+- Include camera direction, lighting, and audio
+- Be specific and vivid — no generic descriptions
+- Make it something that would look AMAZING as a video
+
+Return ONLY a JSON object (no markdown):
+{"prompt":"the prompt text","category":"the category you picked"}`;
+
+      const text = await callKieAI(textPrompt);
+      try {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);
+        return Response.json({
+          rewritten: parsed.prompt || text,
+          category: parsed.category || "Creative",
+        });
+      } catch {
+        return Response.json({ rewritten: text, category: "Creative" });
+      }
+
     } else {
-      return Response.json({ error: "Action must be 'analyze', 'generate', or 'split'" }, { status: 400 });
+      return Response.json({ error: "Action must be 'analyze', 'generate', 'split', or 'surprise'" }, { status: 400 });
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

@@ -10,7 +10,6 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const supabase = createClient();
 
   async function handleSignup(e: React.FormEvent) {
@@ -32,39 +31,15 @@ export default function SignupPage() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
     });
 
     if (error) {
       setError(error.message);
       setLoading(false);
     } else {
-      setSuccess(true);
-      setLoading(false);
+      // No email confirmation needed — redirect to app
+      window.location.href = "/";
     }
-  }
-
-  if (success) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen px-4">
-        <div className="w-full max-w-sm text-center">
-          <div className="text-5xl mb-4">&#9993;</div>
-          <h1 className="text-2xl font-bold mb-2">Check your email</h1>
-          <p className="text-slate-400 mb-6">
-            We sent a confirmation link to <strong className="text-white">{email}</strong>.
-            Click the link in the email to activate your account.
-          </p>
-          <Link
-            href="/login"
-            className="text-indigo-400 hover:text-indigo-300 font-medium"
-          >
-            Back to Sign In
-          </Link>
-        </div>
-      </div>
-    );
   }
 
   return (

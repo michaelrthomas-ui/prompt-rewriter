@@ -946,7 +946,7 @@ export default function Home() {
                       className="p-3 rounded-lg bg-slate-800 border border-slate-700/50 hover:border-indigo-500/50 hover:bg-slate-800/80 text-left transition-all cursor-pointer group"
                     >
                       <span className="text-xs text-indigo-400 font-medium">{t.category}</span>
-                      <p className="text-slate-400 text-xs mt-1 line-clamp-2 group-hover:text-slate-300">{t.prompt}</p>
+                      <p className="text-slate-400 text-xs mt-1 group-hover:text-slate-300">{t.prompt}</p>
                     </button>
                   ))}
                 </div>

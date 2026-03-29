@@ -519,51 +519,99 @@ Return ONLY the clip prompts with their labels. No explanations or commentary.`;
 
     } else if (action === "surprise") {
       const hasImage = !!image;
-      const textPrompt = hasImage
-        ? `${expertise}
+      const hasPrompt = prompt && prompt.trim() !== "surprise" && prompt.trim().length > 0;
+
+      const aspectInstructions = aspectRatio ? `ASPECT RATIO: ${aspectRatio} format. ${aspectRatio === "16:9" ? "Optimize for wide/landscape cinematic compositions." : "Optimize for vertical/portrait phone-screen compositions."}` : "";
+
+      const sharedRequirements = `Requirements:
+- 80-120 words
+- ONE primary action that fits in ${clipDuration} seconds
+- Front-load the subject and action
+- Include camera direction, lighting, and audio
+- Be creative and unexpected — surprise the user with something they wouldn't think of themselves
+- Do NOT add speech, dialogue, or text overlays — only visual motion`;
+
+      let textPrompt: string;
+
+      if (hasPrompt && hasImage) {
+        // Text + Image: use both as creative inspiration
+        textPrompt = `${expertise}
+
+The user has uploaded an image (shown above) and provided this idea: "${prompt}"
+
+Analyze the image carefully and combine it with their text idea to generate a CREATIVE and visually stunning image-to-video prompt for ${modelName}. Use both the image content AND their text as inspiration, but take it in a surprising, unexpected creative direction they wouldn't think of themselves.
+
+${aspectInstructions}
+
+DURATION: Design for ${clipDuration} seconds of action.
+
+${sharedRequirements}
+- The animation must start from this uploaded image
+- Incorporate the user's text idea but elevate it with unexpected creative choices
+
+Pick a category that best fits from: cinematic nature, dramatic action, ethereal portrait, surreal/fantasy, product shot, architectural, underwater, space/sci-fi, historical moment, or abstract art.
+
+Return ONLY a JSON object (no markdown):
+{"prompt":"the prompt text","category":"the category you picked"}`;
+      } else if (hasImage) {
+        // Image only: analyze and create from the image
+        textPrompt = `${expertise}
 
 The user has uploaded an image (shown above). Analyze this image carefully — identify the subject, setting, colors, mood, and any notable details.
 
 Now generate a CREATIVE and visually stunning image-to-video prompt for ${modelName} that describes how THIS SPECIFIC IMAGE should animate into an amazing video. Surprise the user with an unexpected creative direction they wouldn't think of themselves.
 
-${aspectRatio ? `ASPECT RATIO: ${aspectRatio} format. ${aspectRatio === "16:9" ? "Optimize for wide/landscape cinematic compositions." : "Optimize for vertical/portrait phone-screen compositions."}` : ""}
+${aspectInstructions}
 
 DURATION: Design for ${clipDuration} seconds of action.
 
-Requirements:
-- 80-120 words
+${sharedRequirements}
 - Describe motion, camera movement, lighting changes, and atmosphere that bring THIS image to life
-- ONE primary action that fits in ${clipDuration} seconds
-- Front-load the subject and action
-- Include camera direction, lighting, and audio
-- Be creative and unexpected — don't just describe the obvious
 - Do NOT describe a completely different scene — the animation must start from this image
-- Do NOT add speech, dialogue, or text overlays — only visual motion
 
 Pick a category that best fits the image from: cinematic nature, dramatic action, ethereal portrait, surreal/fantasy, product shot, architectural, underwater, space/sci-fi, historical moment, or abstract art.
 
 Return ONLY a JSON object (no markdown):
-{"prompt":"the prompt text","category":"the category you picked"}`
-        : `${expertise}
+{"prompt":"the prompt text","category":"the category you picked"}`;
+      } else if (hasPrompt) {
+        // Text only: use the text as creative seed
+        textPrompt = `${expertise}
+
+The user provided this idea: "${prompt}"
+
+Use their idea as a creative starting point, but take it in a SURPRISING and unexpected direction to generate a visually stunning image-to-video prompt for ${modelName}. Don't just polish their idea — reimagine it, amplify it, or twist it into something they wouldn't expect.
+
+${aspectInstructions}
+
+DURATION: Design for ${clipDuration} seconds of action.
+
+${sharedRequirements}
+- Be specific and vivid — no generic descriptions
+- The prompt should feel inspired by the user's idea but elevated far beyond it
+
+Pick a category that best fits from: cinematic nature, dramatic action, ethereal portrait, surreal/fantasy, product shot, architectural, underwater, space/sci-fi, historical moment, or abstract art.
+
+Return ONLY a JSON object (no markdown):
+{"prompt":"the prompt text","category":"the category you picked"}`;
+      } else {
+        // Fully random
+        textPrompt = `${expertise}
 
 Generate a RANDOM, creative, and visually stunning image-to-video prompt for ${modelName}. Surprise the user with something they wouldn't think of themselves.
 
 Pick a random category: cinematic nature, dramatic action, ethereal portrait, surreal/fantasy, product shot, architectural, underwater, space/sci-fi, historical moment, or abstract art.
 
-${aspectRatio ? `ASPECT RATIO: ${aspectRatio} format. ${aspectRatio === "16:9" ? "Optimize for wide/landscape cinematic compositions." : "Optimize for vertical/portrait phone-screen compositions."}` : ""}
+${aspectInstructions}
 
 DURATION: Design for ${clipDuration} seconds of action.
 
-Requirements:
-- 80-120 words
-- ONE primary action that fits in ${clipDuration} seconds
-- Front-load the subject and action
-- Include camera direction, lighting, and audio
+${sharedRequirements}
 - Be specific and vivid — no generic descriptions
 - Make it something that would look AMAZING as a video
 
 Return ONLY a JSON object (no markdown):
 {"prompt":"the prompt text","category":"the category you picked"}`;
+      }
 
       const text = await callKieAI(buildContent(textPrompt, image));
       try {

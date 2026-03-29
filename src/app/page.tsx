@@ -435,7 +435,7 @@ export default function Home() {
         body: JSON.stringify({
           model,
           action: "surprise",
-          prompt: "surprise",
+          prompt: prompt.trim() || "surprise",
           duration: model === "wan" ? wanDuration : 8,
           aspect: currentAspect,
           image: imageDataUrl || undefined,
@@ -921,7 +921,7 @@ export default function Home() {
               disabled={loading}
               className="w-full mt-3 py-2 rounded-lg font-semibold text-sm bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 disabled:opacity-50 transition-all cursor-pointer border border-slate-700/50"
             >
-              {loading ? loadingMessage : imageDataUrl ? "Surprise Me — Creative Prompt From Image" : "Surprise Me — Random Creative Prompt"}
+              {loading ? loadingMessage : (prompt.trim() && imageDataUrl) ? "Surprise Me — From Prompt & Image" : prompt.trim() ? "Surprise Me — From Prompt" : imageDataUrl ? "Surprise Me — From Image" : "Surprise Me — Random Creative Prompt"}
             </button>
           </>
         )}

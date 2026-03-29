@@ -909,7 +909,9 @@ export default function Home() {
                   rows={3}
                   className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y"
                 />
-                <p className="mt-1.5 text-xs text-slate-500">No idea what to write? No problem — just skip this and we&apos;ll guide you.</p>
+                <p className="mt-2 text-sm text-indigo-400/80 flex items-center gap-1.5">
+                  <span>&#x1F447;</span> No idea what to write? No problem — just skip this and pick an option below
+                </p>
                 {prompt.trim() && imageDataUrl && !promptCheck && !contentRestriction && (
                   <button
                     onClick={checkPromptFeasibility}

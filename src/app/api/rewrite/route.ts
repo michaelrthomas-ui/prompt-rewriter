@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 const GROK_EXPERTISE = `You are an expert on Grok Imagine's image-to-video AI model (by xAI, powered by the Aurora engine). Your knowledge is current as of March 2026.
 
@@ -223,6 +224,13 @@ function buildContent(textPrompt: string, imageDataUrl?: string): string | Messa
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check — protect the API from unauthenticated access
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { model, action, prompt, questions, image, duration, aspect } = await request.json();
 
     if (!prompt && !image) {

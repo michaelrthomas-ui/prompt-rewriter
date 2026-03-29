@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { createClient } from "@/lib/supabase/client";
 
 type Model = "grok" | "wan";
 type AspectRatio = "16:9" | "9:16";
@@ -69,23 +71,37 @@ function getWordCountLabel(count: number): string {
   return "Too long";
 }
 
-function loadHistory(): HistoryEntry[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem("prompt-rewriter-history");
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+// Database row shape from Supabase
+interface HistoryRow {
+  id: string;
+  model: string;
+  original_prompt: string;
+  optimized_prompt: string;
+  summary: string | null;
+  scores: PromptScores | null;
+  aspect: string | null;
+  duration: number | null;
+  created_at: string;
 }
 
-function saveHistory(history: HistoryEntry[]) {
-  try {
-    localStorage.setItem("prompt-rewriter-history", JSON.stringify(history.slice(0, 50)));
-  } catch { /* storage full, ignore */ }
+function rowToEntry(row: HistoryRow): HistoryEntry {
+  return {
+    id: row.id,
+    model: row.model as Model,
+    originalPrompt: row.original_prompt,
+    optimizedPrompt: row.optimized_prompt,
+    summary: row.summary,
+    scores: row.scores,
+    timestamp: new Date(row.created_at).getTime(),
+    aspect: row.aspect as AspectRatio | undefined,
+    duration: row.duration ?? undefined,
+  };
 }
 
 export default function Home() {
+  const supabase = createClient();
+  const router = useRouter();
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [model, setModel] = useState<Model>("grok");
   const [prompt, setPrompt] = useState("");
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
@@ -110,10 +126,26 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Load history on mount
+  // Load user and history on mount
   useEffect(() => {
-    setHistory(loadHistory());
-  }, []);
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUser({ id: user.id, email: user.email ?? undefined });
+    });
+  }, [supabase.auth]);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("prompt_history")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50)
+      .then(({ data }) => {
+        if (data) {
+          setHistory((data as HistoryRow[]).map(rowToEntry));
+        }
+      });
+  }, [user, supabase]);
 
   function resizeImage(file: File): Promise<string> {
     return new Promise((resolve) => {
@@ -323,21 +355,26 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allAnswered, loading, step, readyToGenerate]);
 
-  function addToHistory(optimizedPrompt: string, sum: string | null, sc: PromptScores | null) {
-    const entry: HistoryEntry = {
-      id: Date.now().toString(),
-      model,
-      originalPrompt: prompt,
-      optimizedPrompt,
-      summary: sum,
-      scores: sc,
-      timestamp: Date.now(),
-      aspect: currentAspect,
-      duration: model === "wan" ? wanDuration : 8,
-    };
-    const updated = [entry, ...history].slice(0, 50);
-    setHistory(updated);
-    saveHistory(updated);
+  async function addToHistory(optimizedPrompt: string, sum: string | null, sc: PromptScores | null) {
+    if (!user) return;
+    const { data } = await supabase
+      .from("prompt_history")
+      .insert({
+        user_id: user.id,
+        model,
+        original_prompt: prompt,
+        optimized_prompt: optimizedPrompt,
+        summary: sum,
+        scores: sc,
+        aspect: currentAspect,
+        duration: model === "wan" ? wanDuration : 8,
+      })
+      .select()
+      .single();
+
+    if (data) {
+      setHistory((prev) => [rowToEntry(data as HistoryRow), ...prev].slice(0, 50));
+    }
   }
 
   async function handleGenerate() {
@@ -463,10 +500,22 @@ export default function Home() {
     setShowHistory(false);
   }
 
-  function handleDeleteHistory(id: string) {
-    const updated = history.filter((h) => h.id !== id);
-    setHistory(updated);
-    saveHistory(updated);
+  async function handleDeleteHistory(id: string) {
+    await supabase.from("prompt_history").delete().eq("id", id);
+    setHistory((prev) => prev.filter((h) => h.id !== id));
+  }
+
+  async function handleClearHistory() {
+    if (!user) return;
+    await supabase.from("prompt_history").delete().eq("user_id", user.id);
+    setHistory([]);
+    setShowHistory(false);
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
   }
 
   // Separate the prompt from any TIP line
@@ -596,6 +645,19 @@ export default function Home() {
   return (
     <div className="flex flex-col items-center min-h-screen px-4 py-12">
       <div className="w-full max-w-2xl">
+        {/* User bar */}
+        {user && (
+          <div className="flex items-center justify-end gap-3 mb-4">
+            <span className="text-xs text-slate-500">{user.email}</span>
+            <button
+              onClick={handleLogout}
+              className="text-xs text-slate-400 hover:text-slate-200 cursor-pointer transition-colors"
+            >
+              Sign Out
+            </button>
+          </div>
+        )}
+
         <h1 className="text-3xl font-bold text-center mb-2">
           AI Video Prompt Rewriter
         </h1>
@@ -621,7 +683,7 @@ export default function Home() {
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs text-slate-500 uppercase tracking-wide">Recent Prompts</span>
               <button
-                onClick={() => { setHistory([]); saveHistory([]); setShowHistory(false); }}
+                onClick={handleClearHistory}
                 className="text-xs text-red-400 hover:text-red-300 cursor-pointer"
               >
                 Clear All

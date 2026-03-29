@@ -507,8 +507,13 @@ export default function Home() {
   }
 
   function handleUseSuggestion(suggestionPrompt: string) {
+    setRewritten(suggestionPrompt);
     setPrompt(suggestionPrompt);
     setShowTemplates(false);
+    setSummary(null);
+    setScores(null);
+    setStep("result");
+    addToHistory(suggestionPrompt, "Used AI suggestion", null);
   }
 
   const expandPromptRef = useRef<string | null>(null);

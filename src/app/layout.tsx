@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Video Prompt Rewriter",
-  description: "Optimize your prompts for Grok and Wan image-to-video generation",
+  title: "AI Image Magic Prompt Creation Tool",
+  description: "Create optimized AI video prompts from your images",
 };
 
 export default function RootLayout({

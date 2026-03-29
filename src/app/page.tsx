@@ -679,7 +679,7 @@ export default function Home() {
         )}
 
         <h1 className="text-3xl font-bold text-center mb-2">
-          AI Video Prompt Rewriter
+          AI Image Magic Prompt Creation Tool
         </h1>
         <p className="text-center text-slate-400 mb-4">
           We&apos;ll figure out exactly what you want, then craft the perfect prompt

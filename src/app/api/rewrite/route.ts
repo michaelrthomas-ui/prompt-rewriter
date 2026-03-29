@@ -625,8 +625,39 @@ Return ONLY a JSON object (no markdown):
         return Response.json({ rewritten: text, category: "Creative" });
       }
 
+    } else if (action === "suggest") {
+      if (!image) {
+        return Response.json({ error: "Image is required for suggestions" }, { status: 400 });
+      }
+
+      const textPrompt = `${expertise}
+
+Look at this uploaded image carefully. Analyze what's in it — the subject, setting, mood, colors, composition, and any notable details.
+
+Now suggest 6 different creative ways this image could be animated into a ${clipDuration}-second video using ${modelName}. Each suggestion should be a DIFFERENT type of motion/animation style.
+
+${aspectRatio ? `ASPECT RATIO: ${aspectRatio} format.` : ""}
+
+For each suggestion, provide:
+- A short category label (2-3 words max)
+- A brief description (1-2 sentences) of what would happen in the video, specific to THIS image
+
+Be specific to what's actually IN the image. Don't give generic suggestions — reference the actual subject, setting, and details you see.
+
+Return ONLY a JSON array (no markdown, no code blocks):
+[{"category":"label","prompt":"description"},{"category":"label","prompt":"description"}]`;
+
+      const text = await callKieAI(buildContent(textPrompt, image));
+      try {
+        const jsonMatch = text.match(/\[[\s\S]*\]/);
+        const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);
+        return Response.json({ suggestions: Array.isArray(parsed) ? parsed : [] });
+      } catch {
+        return Response.json({ suggestions: [] });
+      }
+
     } else {
-      return Response.json({ error: "Action must be 'analyze', 'generate', 'split', or 'surprise'" }, { status: 400 });
+      return Response.json({ error: "Action must be 'analyze', 'generate', 'split', 'surprise', or 'suggest'" }, { status: 400 });
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

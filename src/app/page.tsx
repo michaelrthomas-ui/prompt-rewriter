@@ -40,16 +40,6 @@ interface HistoryEntry {
   duration?: number;
 }
 
-const IMAGE_TEMPLATES = [
-  { category: "Gentle Motion", prompt: "Subtle natural movement — a soft breeze, gentle swaying, light flickering, or fabric rippling" },
-  { category: "Cinematic Push-In", prompt: "Slow cinematic camera push toward the subject, with shallow depth of field and ambient particles" },
-  { category: "Dramatic Reveal", prompt: "Camera slowly pulls back to reveal the full scene, with dramatic lighting shifting from shadow to glow" },
-  { category: "Come to Life", prompt: "The subject comes alive — eyes blink, a smile forms, hair moves in the wind, natural lifelike motion" },
-  { category: "Weather Effect", prompt: "Rain begins to fall softly, or snow drifts down, or fog rolls in — adding atmosphere and mood" },
-  { category: "Time-Lapse", prompt: "Time accelerates — clouds race across the sky, shadows shift, light changes from day to golden hour" },
-  { category: "Parallax Depth", prompt: "Foreground and background move at different speeds creating a 3D parallax depth effect" },
-  { category: "Epic Action", prompt: "Sudden dramatic motion — an explosion, a leap, a burst of energy, or fast dynamic movement" },
-];
 
 function getWordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
@@ -122,6 +112,8 @@ export default function Home() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [imageSuggestions, setImageSuggestions] = useState<{ category: string; prompt: string }[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -181,6 +173,8 @@ export default function Home() {
     setImageName(file.name);
     resizeImage(file).then((dataUrl) => {
       setImageDataUrl(dataUrl);
+      setImageSuggestions([]);
+      setShowTemplates(false);
       setError("");
     });
   }
@@ -193,7 +187,37 @@ export default function Home() {
   function handleRemoveImage() {
     setImageDataUrl(null);
     setImageName("");
+    setImageSuggestions([]);
+    setShowTemplates(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function fetchImageSuggestions() {
+    if (!imageDataUrl || loadingSuggestions) return;
+    setLoadingSuggestions(true);
+    setShowTemplates(true);
+    try {
+      const res = await fetch("/api/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          action: "suggest",
+          prompt: "",
+          image: imageDataUrl,
+          duration: model === "wan" ? wanDuration : 8,
+          aspect: model === "grok" ? grokAspect : wanAspect,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setImageSuggestions(data.suggestions || []);
+      }
+    } catch {
+      // Silently fail — suggestions are a nice-to-have
+    } finally {
+      setLoadingSuggestions(false);
+    }
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -885,28 +909,39 @@ export default function Home() {
               />
             </div>
 
-            {/* Templates toggle */}
+            {/* Suggestions toggle */}
             <div className="flex justify-center mb-4">
               <button
-                onClick={() => imageDataUrl && setShowTemplates(!showTemplates)}
+                onClick={() => {
+                  if (!imageDataUrl) return;
+                  if (showTemplates) {
+                    setShowTemplates(false);
+                  } else if (imageSuggestions.length > 0) {
+                    setShowTemplates(true);
+                  } else {
+                    fetchImageSuggestions();
+                  }
+                }}
                 className={`text-sm transition-colors ${imageDataUrl ? "text-indigo-400 hover:text-indigo-300 cursor-pointer" : "text-slate-600 cursor-not-allowed"}`}
               >
-                {showTemplates
+                {loadingSuggestions
+                  ? "Analyzing your image..."
+                  : showTemplates
                   ? "Hide suggestions"
                   : imageDataUrl
-                  ? "Not sure what to type? See suggestions for your image"
+                  ? "Not sure what to type? Get AI suggestions for your image"
                   : "Upload an image to see suggestions"}
               </button>
             </div>
 
-            {/* Templates grid */}
-            {showTemplates && (
+            {/* AI-generated suggestions grid */}
+            {showTemplates && imageSuggestions.length > 0 && (
               <div className="mb-4">
-                <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Describe how your image should animate</p>
+                <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Suggested prompts for your image</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {IMAGE_TEMPLATES.map((t, i) => (
+                  {imageSuggestions.map((t, i) => (
                     <button
-                      key={`img-${i}`}
+                      key={`sug-${i}`}
                       onClick={() => handleUseTemplate(t.prompt)}
                       className="p-3 rounded-lg bg-slate-800 border border-slate-700/50 hover:border-indigo-500/50 hover:bg-slate-800/80 text-left transition-all cursor-pointer group"
                     >

@@ -1110,9 +1110,46 @@ export default function Home() {
                     <button
                       onClick={() => {
                         setShowTemplates(false);
-                        handleAnalyze();
+                        // Go straight to questions step with loading — skip flashing back to input
+                        setStep("questions");
+                        setLoading(true);
+                        setLoadingMessage("Switching gears — preparing your questions...");
+                        setPendingQuestions([]);
+                        setAnsweredQuestions([]);
+                        setRewritten("");
+                        setSummary(null);
+                        setPromptIssueWarning(null);
+                        setReadyToGenerate(false);
+                        setError("");
+                        fetch("/api/rewrite", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            model: defaultModel,
+                            action: "analyze",
+                            prompt,
+                            image: imageDataUrl || undefined,
+                            duration: defaultDuration,
+                            aspect: currentAspect,
+                          }),
+                        }).then(async (res) => {
+                          if (!res.ok) {
+                            const data = await res.json();
+                            throw new Error(data.error || "Failed to analyze");
+                          }
+                          const data = await res.json();
+                          setPendingQuestions(
+                            data.questions.map((q: string) => ({ question: q, answer: null, customText: "", useCustom: false }))
+                          );
+                          setReadyToGenerate(!!data.readyToGenerate);
+                        }).catch((err) => {
+                          setError(err instanceof Error ? err.message : "Something went wrong");
+                        }).finally(() => {
+                          setLoading(false);
+                          setLoadingMessage("");
+                        });
                       }}
-                      className="w-full mt-3 py-2.5 rounded-lg font-medium text-sm text-slate-400 hover:text-slate-200 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 transition-all cursor-pointer"
+                      className="w-full mt-3 py-2.5 rounded-lg font-medium text-sm text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 transition-all cursor-pointer"
                     >
                       None of these — guide me with questions instead
                     </button>
@@ -1280,7 +1317,19 @@ export default function Home() {
               </div>
             )}
 
-            {loading && (
+            {loading && pendingQuestions.length === 0 && answeredQuestions.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="w-16 h-16 rounded-full bg-indigo-600/20 flex items-center justify-center mb-4 animate-pulse">
+                  <svg className="w-8 h-8 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                </div>
+                <p className="text-lg font-semibold text-white mb-1">Analyzing your image...</p>
+                <p className="text-sm text-slate-400">Preparing personalized questions just for you</p>
+              </div>
+            )}
+            {loading && (pendingQuestions.length > 0 || answeredQuestions.length > 0) && (
               <div className="text-center py-4 text-slate-300 animate-pulse">
                 {loadingMessage}
               </div>

@@ -518,7 +518,33 @@ Return ONLY the clip prompts with their labels. No explanations or commentary.`;
       return Response.json({ rewritten });
 
     } else if (action === "surprise") {
-      const textPrompt = `${expertise}
+      const hasImage = !!image;
+      const textPrompt = hasImage
+        ? `${expertise}
+
+The user has uploaded an image (shown above). Analyze this image carefully — identify the subject, setting, colors, mood, and any notable details.
+
+Now generate a CREATIVE and visually stunning image-to-video prompt for ${modelName} that describes how THIS SPECIFIC IMAGE should animate into an amazing video. Surprise the user with an unexpected creative direction they wouldn't think of themselves.
+
+${aspectRatio ? `ASPECT RATIO: ${aspectRatio} format. ${aspectRatio === "16:9" ? "Optimize for wide/landscape cinematic compositions." : "Optimize for vertical/portrait phone-screen compositions."}` : ""}
+
+DURATION: Design for ${clipDuration} seconds of action.
+
+Requirements:
+- 80-120 words
+- Describe motion, camera movement, lighting changes, and atmosphere that bring THIS image to life
+- ONE primary action that fits in ${clipDuration} seconds
+- Front-load the subject and action
+- Include camera direction, lighting, and audio
+- Be creative and unexpected — don't just describe the obvious
+- Do NOT describe a completely different scene — the animation must start from this image
+- Do NOT add speech, dialogue, or text overlays — only visual motion
+
+Pick a category that best fits the image from: cinematic nature, dramatic action, ethereal portrait, surreal/fantasy, product shot, architectural, underwater, space/sci-fi, historical moment, or abstract art.
+
+Return ONLY a JSON object (no markdown):
+{"prompt":"the prompt text","category":"the category you picked"}`
+        : `${expertise}
 
 Generate a RANDOM, creative, and visually stunning image-to-video prompt for ${modelName}. Surprise the user with something they wouldn't think of themselves.
 
@@ -539,7 +565,7 @@ Requirements:
 Return ONLY a JSON object (no markdown):
 {"prompt":"the prompt text","category":"the category you picked"}`;
 
-      const text = await callKieAI(textPrompt);
+      const text = await callKieAI(buildContent(textPrompt, image));
       try {
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);

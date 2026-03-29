@@ -874,22 +874,24 @@ export default function Home() {
               )}
             </div>
 
-            {/* Prompt input */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-slate-300">
-                  Describe what you want to create
-                  <span className="text-slate-500 font-normal"> — or leave blank and we&apos;ll help you figure it out</span>
-                </label>
+            {/* Prompt input — hidden when viewing suggestions */}
+            {!showTemplates && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-slate-300">
+                    Describe what you want to create
+                    <span className="text-slate-500 font-normal"> — or leave blank and we&apos;ll help you figure it out</span>
+                  </label>
+                </div>
+                <textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Describe how you want this image to come alive as a video... or leave empty and we'll ask you questions!"
+                  rows={4}
+                  className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y"
+                />
               </div>
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe how you want this image to come alive as a video... or leave empty and we'll ask you questions!"
-                rows={4}
-                className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y"
-              />
-            </div>
+            )}
 
             {/* Action buttons — two paths */}
             {!showTemplates ? (
@@ -980,6 +982,17 @@ export default function Home() {
                     <div className="text-center py-8 text-slate-500 text-sm">
                       {loadingSuggestions ? "Analyzing your image..." : "No suggestions available"}
                     </div>
+                  )}
+                  {imageSuggestions.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setShowTemplates(false);
+                        handleAnalyze();
+                      }}
+                      className="w-full mt-3 py-2.5 rounded-lg font-medium text-sm text-slate-400 hover:text-slate-200 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 transition-all cursor-pointer"
+                    >
+                      None of these — guide me with questions instead
+                    </button>
                   )}
                 </div>
               </>

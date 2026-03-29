@@ -40,17 +40,6 @@ interface HistoryEntry {
   duration?: number;
 }
 
-const TEMPLATES = [
-  { category: "Cinematic Nature", prompt: "A lone wolf standing on a snow-covered cliff at golden hour, wind blowing through its fur" },
-  { category: "Dramatic Action", prompt: "A vintage muscle car drifting around a rain-soaked city corner at night, headlights cutting through steam" },
-  { category: "Ethereal Portrait", prompt: "A woman with flowing silver hair standing in a field of lavender, petals swirling around her" },
-  { category: "Surreal Fantasy", prompt: "A giant whale swimming through clouds above a small mountain village at sunset" },
-  { category: "Product Shot", prompt: "A luxury watch sitting on a dark marble surface with water droplets slowly rolling off the crystal" },
-  { category: "Underwater", prompt: "A sea turtle gliding through a sunlit coral reef, schools of tropical fish scattering in its wake" },
-  { category: "Space / Sci-Fi", prompt: "An astronaut floating in front of a massive nebula, helmet visor reflecting swirling purple and gold gases" },
-  { category: "Abstract Art", prompt: "Liquid mercury and molten gold colliding in slow motion, forming intricate organic patterns" },
-];
-
 const IMAGE_TEMPLATES = [
   { category: "Gentle Motion", prompt: "Subtle natural movement — a soft breeze, gentle swaying, light flickering, or fabric rippling" },
   { category: "Cinematic Push-In", prompt: "Slow cinematic camera push toward the subject, with shallow depth of field and ambient particles" },
@@ -688,7 +677,7 @@ export default function Home() {
               </div>
               <div className="flex gap-3">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">2</span>
-                <p className="text-slate-400"><span className="text-slate-200 font-medium">Upload an image</span> (optional) — this is the starting frame your video will animate from.</p>
+                <p className="text-slate-400"><span className="text-slate-200 font-medium">Upload your image</span> — this is the starting frame your video will animate from. The AI uses it to craft a prompt that matches.</p>
               </div>
               <div className="flex gap-3">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">3</span>
@@ -831,7 +820,7 @@ export default function Home() {
             {/* Image upload */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Reference Image <span className="text-slate-500">(optional)</span>
+                Upload Your Image
               </label>
               {!imageDataUrl ? (
                 <div
@@ -844,7 +833,7 @@ export default function Home() {
                     Drop an image here or click to upload
                   </p>
                   <p className="text-slate-500 text-sm mt-1">
-                    Upload the image you want to animate into a video
+                    Upload the image you want to animate into a video — this is required so the AI can tailor your prompt
                   </p>
                   <input
                     ref={fileInputRef}
@@ -885,21 +874,13 @@ export default function Home() {
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-slate-300">
                   Describe what you want to create
-                  {imageDataUrl && (
-                    <span className="text-slate-500 font-normal"> — or leave blank and we&apos;ll help you figure it out</span>
-                  )}
+                  <span className="text-slate-500 font-normal"> — or leave blank and we&apos;ll help you figure it out</span>
                 </label>
               </div>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder={
-                  imageDataUrl
-                    ? "Describe how you want this image to come alive as a video... or leave empty and let us ask you questions!"
-                    : model === "grok"
-                    ? "e.g. A dog running through a field of flowers..."
-                    : "e.g. A woman walking down a city street at night..."
-                }
+                placeholder="Describe how you want this image to come alive as a video... or leave empty and we'll ask you questions!"
                 rows={4}
                 className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y"
               />
@@ -913,80 +894,47 @@ export default function Home() {
               >
                 {showTemplates
                   ? "Hide suggestions"
-                  : imageDataUrl
-                  ? "Not sure what to type? See suggestions for your image"
-                  : "Need inspiration? Try a template"}
+                  : "Not sure what to type? See suggestions for your image"}
               </button>
             </div>
 
             {/* Templates grid */}
             {showTemplates && (
               <div className="mb-4">
-                {imageDataUrl && (
-                  <>
-                    <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Describe how your image should animate</p>
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                      {IMAGE_TEMPLATES.map((t, i) => (
-                        <button
-                          key={`img-${i}`}
-                          onClick={() => handleUseTemplate(t.prompt)}
-                          className="p-3 rounded-lg bg-slate-800 border border-slate-700/50 hover:border-indigo-500/50 hover:bg-slate-800/80 text-left transition-all cursor-pointer group"
-                        >
-                          <span className="text-xs text-indigo-400 font-medium">{t.category}</span>
-                          <p className="text-slate-400 text-xs mt-1 line-clamp-2 group-hover:text-slate-300">{t.prompt}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-                {!imageDataUrl && (
-                  <>
-                    <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Pick a starting point</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {TEMPLATES.map((t, i) => (
-                        <button
-                          key={i}
-                          onClick={() => handleUseTemplate(t.prompt)}
-                          className="p-3 rounded-lg bg-slate-800 border border-slate-700/50 hover:border-indigo-500/50 hover:bg-slate-800/80 text-left transition-all cursor-pointer group"
-                        >
-                          <span className="text-xs text-indigo-400 font-medium">{t.category}</span>
-                          <p className="text-slate-400 text-xs mt-1 line-clamp-2 group-hover:text-slate-300">{t.prompt}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
+                <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Describe how your image should animate</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {IMAGE_TEMPLATES.map((t, i) => (
+                    <button
+                      key={`img-${i}`}
+                      onClick={() => handleUseTemplate(t.prompt)}
+                      className="p-3 rounded-lg bg-slate-800 border border-slate-700/50 hover:border-indigo-500/50 hover:bg-slate-800/80 text-left transition-all cursor-pointer group"
+                    >
+                      <span className="text-xs text-indigo-400 font-medium">{t.category}</span>
+                      <p className="text-slate-400 text-xs mt-1 line-clamp-2 group-hover:text-slate-300">{t.prompt}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
             {/* Action buttons */}
             <div className="flex gap-3">
-              {imageDataUrl && !prompt.trim() ? (
-                <button
-                  onClick={handleAnalyze}
-                  disabled={loading}
-                  className="flex-1 py-3 rounded-lg font-semibold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
-                >
-                  {loading ? loadingMessage : "Help Me Create a Prompt"}
-                </button>
-              ) : (
-                <button
-                  onClick={handleAnalyze}
-                  disabled={loading || (!prompt.trim() && !imageDataUrl)}
-                  className="flex-1 py-3 rounded-lg font-semibold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
-                >
-                  {loading ? loadingMessage : "Let\u2019s Figure Out What You Want"}
-                </button>
-              )}
+              <button
+                onClick={handleAnalyze}
+                disabled={loading || !imageDataUrl}
+                className="flex-1 py-3 rounded-lg font-semibold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+              >
+                {loading ? loadingMessage : !imageDataUrl ? "Upload an image to get started" : prompt.trim() ? "Let\u2019s Figure Out What You Want" : "Help Me Create a Prompt"}
+              </button>
             </div>
 
             {/* Surprise me button */}
             <button
               onClick={handleSurpriseMe}
-              disabled={loading}
+              disabled={loading || !imageDataUrl}
               className="w-full mt-3 py-2 rounded-lg font-semibold text-sm bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 disabled:opacity-50 transition-all cursor-pointer border border-slate-700/50"
             >
-              {loading ? loadingMessage : (prompt.trim() && imageDataUrl) ? "Surprise Me — From Prompt & Image" : prompt.trim() ? "Surprise Me — From Prompt" : imageDataUrl ? "Surprise Me — From Image" : "Surprise Me — Random Creative Prompt"}
+              {loading ? loadingMessage : !imageDataUrl ? "Upload an image first" : prompt.trim() ? "Surprise Me — From Prompt & Image" : "Surprise Me — From Image"}
             </button>
           </>
         )}

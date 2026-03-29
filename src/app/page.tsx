@@ -939,19 +939,23 @@ export default function Home() {
                     </div>
                   </>
                 )}
-                <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">{imageDataUrl ? "Or start from a scene idea" : "Pick a starting point"}</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {TEMPLATES.map((t, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleUseTemplate(t.prompt)}
-                      className="p-3 rounded-lg bg-slate-800 border border-slate-700/50 hover:border-indigo-500/50 hover:bg-slate-800/80 text-left transition-all cursor-pointer group"
-                    >
-                      <span className="text-xs text-indigo-400 font-medium">{t.category}</span>
-                      <p className="text-slate-400 text-xs mt-1 line-clamp-2 group-hover:text-slate-300">{t.prompt}</p>
-                    </button>
-                  ))}
-                </div>
+                {!imageDataUrl && (
+                  <>
+                    <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Pick a starting point</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {TEMPLATES.map((t, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleUseTemplate(t.prompt)}
+                          className="p-3 rounded-lg bg-slate-800 border border-slate-700/50 hover:border-indigo-500/50 hover:bg-slate-800/80 text-left transition-all cursor-pointer group"
+                        >
+                          <span className="text-xs text-indigo-400 font-medium">{t.category}</span>
+                          <p className="text-slate-400 text-xs mt-1 line-clamp-2 group-hover:text-slate-300">{t.prompt}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

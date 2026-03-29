@@ -895,8 +895,8 @@ export default function Home() {
               )}
             </div>
 
-            {/* Prompt input — hidden when viewing suggestions */}
-            {!showTemplates && (
+            {/* Prompt input — only shown after image upload, hidden when viewing suggestions */}
+            {imageDataUrl && !showTemplates && (
               <div className="mb-4">
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Got an idea? Describe it here

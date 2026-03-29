@@ -898,19 +898,18 @@ export default function Home() {
             {/* Prompt input — hidden when viewing suggestions */}
             {!showTemplates && (
               <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-slate-300">
-                    Describe what you want to create
-                    <span className="text-slate-500 font-normal"> — or leave blank and we&apos;ll help you figure it out</span>
-                  </label>
-                </div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Got an idea? Describe it here
+                  <span className="ml-1.5 text-xs font-normal text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full">Optional</span>
+                </label>
                 <textarea
                   value={prompt}
                   onChange={(e) => { setPrompt(e.target.value); setPromptCheck(null); }}
-                  placeholder="Describe how you want this image to come alive as a video... or leave empty and we'll ask you questions!"
-                  rows={4}
+                  placeholder="Example: &quot;the dog turns its head and barks&quot; — or skip this and we'll help you figure it out!"
+                  rows={3}
                   className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y"
                 />
+                <p className="mt-1.5 text-xs text-slate-500">No idea what to write? No problem — just skip this and we&apos;ll guide you.</p>
                 {prompt.trim() && imageDataUrl && !promptCheck && !contentRestriction && (
                   <button
                     onClick={checkPromptFeasibility}

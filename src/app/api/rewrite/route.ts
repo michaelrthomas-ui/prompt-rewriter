@@ -376,20 +376,20 @@ ${questions && questions.length > 0 ? "IMPORTANT: Do NOT repeat any questions al
 
       const textPrompt = `${analyzeIntro}${aspectContext}
 
-CRITICAL QUESTION FORMAT RULES:
-1. Every question MUST be answerable with "Yes", "No", or a short typed answer.
-2. ABSOLUTELY NEVER use the word "or" anywhere in a question to present alternatives. This is the MOST IMPORTANT rule. BANNED examples:
-   - "Do you want X or Y?" ❌
-   - "Should X, or should Y?" ❌
-   - "Do you want X or something more Y?" ❌
-   - "Should it be X or more Y?" ❌
-   - "Do you want X (detail) or Y?" ❌
-3. Instead, pick ONE specific option and ask a yes/no question about it. Examples:
-   - "Should the motion be subtle and realistic?" ✅
-   - "Do you want dramatic, intense motion?" ✅
-   - "Should the water have gentle lapping waves?" ✅
-4. Keep questions concise and specific.
-5. FINAL CHECK: Before returning, scan every question for the word " or ". If ANY question contains " or " presenting a choice between two things, you MUST rewrite it as a single-option yes/no question. Zero tolerance.
+CRITICAL QUESTION FORMAT RULES — FOLLOW THESE EXACTLY:
+1. Every question MUST be a simple YES/NO question about ONE specific thing.
+2. THE WORD "or" IS COMPLETELY BANNED FROM ALL QUESTIONS. Not a single question may contain the word "or". This rule has ZERO exceptions.
+   BANNED — any question containing "or": ❌❌❌
+   - "Should the dog be realistic or playful?" ❌ BANNED
+   - "Do you want X or Y?" ❌ BANNED
+   - "Should it be slow or fast?" ❌ BANNED
+   - "more playful and domesticated or wild?" ❌ BANNED
+   HOW TO FIX: Pick ONE option. Ask about ONLY that one thing:
+   - "Should the dog look like a wild wilderness dog?" ✅
+   - "Do you want the motion to be slow and gentle?" ✅
+   - "Should this have a playful, fun energy?" ✅
+3. Keep questions concise — one sentence, one concept.
+4. VALIDATION: Go through each question you generated. If it contains " or " anywhere, DELETE IT and write a new yes/no question about just one of the options.
 
 READINESS ASSESSMENT: Based on everything so far, decide if you have ENOUGH information to write an excellent ${modelName} prompt.
 ${imageOnlyMode ? `For image-only mode, you need MORE info before you're ready — since there's no user prompt to start from, you need at MINIMUM: (1) a clear creative direction/vibe, (2) a specific main action or event, (3) some sense of mood/style. Do NOT set readyToGenerate to true until you've asked at least 6-8 questions and have a clear picture. It's better to ask too many questions than to generate a vague prompt.` : `You need at minimum: a clear subject/scene, motion intent, and camera/style direction.`}
@@ -429,39 +429,23 @@ Example: {"questions":["Should the camera slowly push in toward the subject?","D
       }
 
       // Post-process: fix any "A or B?" choice questions that slipped through
-      // Only catch REAL choice patterns like ", or should", ", or would", "X or Y?" at end
-      // Do NOT touch synonyms like "unexpected or surprising" or ranges like "2 or 3"
+      // Aggressively catch any question with " or " that presents alternatives
       parsed.questions = parsed.questions.map((q: string) => {
-        // Pattern 1: "Should X, or should/would/do Y?" — two separate clauses joined by ", or"
-        const commaOrClause = q.match(/^(.{20,}),\s+or\s+(?:should|would|do|does|will|can|could)\s+.+\?$/i);
-        if (commaOrClause) {
-          let firstPart = commaOrClause[1].trim();
-          if (!firstPart.endsWith("?")) firstPart += "?";
-          return firstPart;
-        }
+        // Skip if no " or " present
+        if (!/ or /i.test(q)) return q;
 
-        // Pattern 2: "Do you want X or Y?" where X and Y are clearly alternatives
-        // Detected by ", or " or ") or " (comma/closing paren before or = deliberate alternative)
-        const commaOr = q.match(/^(.{20,})[,)]\s+or\s+(.+?\?)\s*$/i);
-        if (commaOr) {
-          let firstPart = commaOr[1].trim();
-          // Remove trailing open paren content if we cut at ")"
-          firstPart = firstPart.replace(/\s*\([^)]*$/, "");
-          if (!firstPart.endsWith("?")) firstPart += "?";
-          return firstPart;
-        }
+        // Allow safe uses of "or": "2 or 3", "one or two", "or more"
+        const safeOr = /\b\d+\s+or\s+\d+\b|\bone\s+or\s+two\b|\bor\s+more\b|\bor\s+less\b|\bor\s+not\b/i;
+        if (safeOr.test(q) && (q.match(/ or /gi) || []).length === 1) return q;
 
-        // Pattern 3: "X or something more Y?" — "or something" is always a choice
-        const orSomething = q.match(/^(.{20,})\s+or\s+something\s+.+\?$/i);
-        if (orSomething) {
-          let firstPart = orSomething[1].trim();
-          // Clean up trailing parenthetical fragment
-          firstPart = firstPart.replace(/\s*\([^)]*$/, "").replace(/\s*\([^)]*\)\s*$/, "");
-          if (!firstPart.endsWith("?")) firstPart += "?";
-          return firstPart;
-        }
-
-        return q;
+        // This question contains " or " presenting alternatives — take the first half
+        // Find the " or " and keep everything before it, turn into a yes/no question
+        const orIndex = q.toLowerCase().indexOf(" or ");
+        let firstPart = q.substring(0, orIndex).trim();
+        // Clean up trailing conjunctions, parentheticals
+        firstPart = firstPart.replace(/\s*\([^)]*$/, "").replace(/,\s*$/, "");
+        if (!firstPart.endsWith("?")) firstPart += "?";
+        return firstPart;
       });
 
       // Safety: filter out any questions that are too short (< 20 chars) as they were likely truncated

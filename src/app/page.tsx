@@ -108,6 +108,8 @@ export default function Home() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const lastSuggestInputRef = useRef<{ image: string; prompt: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [promptCheck, setPromptCheck] = useState<{ status: "good" | "warning"; message: string } | null>(null);
+  const [checkingPrompt, setCheckingPrompt] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -183,6 +185,7 @@ export default function Home() {
     setImageSuggestions([]);
     setShowTemplates(false);
     lastSuggestInputRef.current = null;
+    setPromptCheck(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -224,6 +227,34 @@ export default function Home() {
       // Silently fail — suggestions are a nice-to-have
     } finally {
       setLoadingSuggestions(false);
+    }
+  }
+
+  async function checkPromptFeasibility() {
+    if (!prompt.trim() || !imageDataUrl || checkingPrompt) return;
+    setCheckingPrompt(true);
+    setPromptCheck(null);
+    try {
+      const res = await fetch("/api/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          action: "check",
+          prompt: prompt.trim(),
+          image: imageDataUrl,
+          duration: model === "wan" ? wanDuration : 8,
+          aspect: model === "grok" ? grokAspect : wanAspect,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPromptCheck(data);
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setCheckingPrompt(false);
     }
   }
 
@@ -898,12 +929,45 @@ export default function Home() {
                 </div>
                 <textarea
                   value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
+                  onChange={(e) => { setPrompt(e.target.value); setPromptCheck(null); }}
                   placeholder="Describe how you want this image to come alive as a video... or leave empty and we'll ask you questions!"
                   rows={4}
                   className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y"
                 />
-                {promptWarning && (
+                {prompt.trim() && imageDataUrl && (
+                  <div className="mt-2">
+                    <button
+                      onClick={checkPromptFeasibility}
+                      disabled={checkingPrompt}
+                      className="text-sm text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                      {checkingPrompt ? (
+                        <>
+                          <span className="inline-block w-3.5 h-3.5 border-2 border-slate-500 border-t-indigo-400 rounded-full animate-spin" />
+                          Checking your prompt...
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-base">&#128269;</span>
+                          Check if this will work with {model === "grok" ? "Grok" : "Wan"}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+                {promptCheck && (
+                  <div className={`mt-2 p-3 rounded-lg text-sm flex gap-2 ${
+                    promptCheck.status === "good"
+                      ? "bg-emerald-900/40 border border-emerald-700/60 text-emerald-200"
+                      : "bg-amber-900/40 border border-amber-700/60 text-amber-200"
+                  }`}>
+                    <span className={`mt-0.5 shrink-0 ${promptCheck.status === "good" ? "text-emerald-400" : "text-amber-400"}`}>
+                      {promptCheck.status === "good" ? "\u2705" : "\u26A0\uFE0F"}
+                    </span>
+                    <span>{promptCheck.message}</span>
+                  </div>
+                )}
+                {promptWarning && !promptCheck && (
                   <div className="mt-2 p-3 rounded-lg bg-amber-900/40 border border-amber-700/60 text-amber-200 text-sm flex gap-2">
                     <span className="text-amber-400 mt-0.5 shrink-0">&#9888;</span>
                     <span>{promptWarning}</span>

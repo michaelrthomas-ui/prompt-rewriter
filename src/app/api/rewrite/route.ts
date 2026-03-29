@@ -627,6 +627,58 @@ Return ONLY a JSON object (no markdown):
         return Response.json({ rewritten: text, category: "Creative" });
       }
 
+    } else if (action === "check") {
+      if (!prompt || !prompt.trim()) {
+        return Response.json({ error: "Prompt is required for checking" }, { status: 400 });
+      }
+
+      const textPrompt = `${expertise}
+
+You are checking whether a user's prompt idea will work well with ${modelName} image-to-video generation.
+
+The user wrote: "${prompt}"
+${image ? "They also uploaded a reference image (shown above)." : ""}
+
+Analyze their prompt and determine:
+1. Is this something ${modelName} can actually do well?
+2. Does the prompt make sense for image-to-video generation?
+3. Are there any parts that will likely fail or produce poor results?
+
+KNOWN ${modelName} LIMITATIONS:
+- Cannot render legible text, words, or captions in the video — any text appears garbled
+- Cannot do scene changes or transitions — it produces one continuous ${clipDuration}-second clip
+- Struggles with detailed hand/finger close-ups (often distorted)
+- Dense crowds with many people lose coherence
+- Complex physics simulations or extreme transformations often fail
+- Cannot produce multiple independent actions simultaneously
+- Video is only ${clipDuration} seconds — overly complex sequences won't fit
+
+THINGS ${modelName} CAN DO:
+- Speaking, talking, lip movement, dialogue-like motion
+- Camera movements (pan, zoom, tilt, tracking)
+- Natural motion (wind, water, fire, smoke, hair, clothing)
+- Character animation and body movement
+- Lighting changes, atmospheric effects
+- Audio generation (ambient sounds, effects)
+
+Return ONLY a JSON object (no markdown, no code blocks):
+If the prompt is good: {"status":"good","message":"Brief encouraging feedback about why this will work well"}
+If there are issues: {"status":"warning","message":"Friendly explanation of what won't work and a suggestion for what to try instead"}
+
+Keep the message to 1-3 sentences. Be helpful, not discouraging.`;
+
+      const text = await callKieAI(buildContent(textPrompt, image));
+      try {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);
+        return Response.json({
+          status: parsed.status || "good",
+          message: parsed.message || "Your prompt looks good!",
+        });
+      } catch {
+        return Response.json({ status: "good", message: "Your prompt looks good!" });
+      }
+
     } else if (action === "suggest") {
       if (!image) {
         return Response.json({ error: "Image is required for suggestions" }, { status: 400 });
@@ -684,7 +736,7 @@ Return ONLY a JSON array (no markdown, no code blocks):
       }
 
     } else {
-      return Response.json({ error: "Action must be 'analyze', 'generate', 'split', 'surprise', or 'suggest'" }, { status: 400 });
+      return Response.json({ error: "Action must be 'analyze', 'generate', 'split', 'surprise', 'suggest', or 'check'" }, { status: 400 });
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

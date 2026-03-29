@@ -732,19 +732,15 @@ export default function Home() {
             <div className="grid grid-cols-1 gap-3 text-sm">
               <div className="flex gap-3">
                 <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">1</span>
-                <p className="text-slate-400"><span className="text-slate-200 font-medium">Choose your model &amp; format</span> — select Grok (8s clips) or Wan (5s/10s clips), then pick 16:9 wide or 9:16 vertical.</p>
-              </div>
-              <div className="flex gap-3">
-                <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">2</span>
                 <p className="text-slate-400"><span className="text-slate-200 font-medium">Upload your image</span> — this is the image that will be animated into a video. The AI analyzes it to make sure your prompt matches what&apos;s in the image.</p>
               </div>
               <div className="flex gap-3">
-                <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">3</span>
+                <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">2</span>
                 <p className="text-slate-400"><span className="text-slate-200 font-medium">Describe how it should move</span> (optional) — tell us what motion or action you want. Not sure? Leave it blank and we&apos;ll ask you questions, or click <span className="text-slate-300">Get AI suggestions</span> for ideas tailored to your image.</p>
               </div>
               <div className="flex gap-3">
-                <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">4</span>
-                <p className="text-slate-400"><span className="text-slate-200 font-medium">Get your prompt</span> — we&apos;ll generate an optimized prompt you can copy and paste directly into the AI video tool to create your video.</p>
+                <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-xs font-bold">3</span>
+                <p className="text-slate-400"><span className="text-slate-200 font-medium">Get your prompt</span> — we&apos;ll generate an optimized prompt and automatically pick the best AI model (Grok or Wan) and duration for your idea.</p>
               </div>
             </div>
           </div>

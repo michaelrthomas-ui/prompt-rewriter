@@ -658,16 +658,16 @@ Go through every noun and subject in the user's prompt and check if it exists in
 - Any subject mentioned → Is it in the image or does it need to emerge/appear?
 
 IMPORTANT — TEXT AND VOICE DISTINCTION:
-- "reads the text" / "speaks the words" / "narrates" = the user wants VOICE/AUDIO narration of text that's already in the image. This IS possible — ${modelName} can generate voice audio. This is NOT the same as rendering new text.
+- "reads the text" / "speaks the words" / "narrates" = the user wants someone to READ ALOUD or NARRATE text that's in the image. This IS possible — ${modelName} can generate a person appearing/emerging AND speaking, plus voice audio. This is a VALID and ACHIEVABLE request.
 - "text appears" / "write text" / "show words" / "display caption" = the user wants NEW text generated visually on screen. This will NOT work — ${modelName} renders new text as garbled.
-- If the image already contains text and the user wants it READ ALOUD, that's a valid request. Suggest including "a voice narrates the on-screen text" in the audio layer.
+- If the image contains text and the user wants it read aloud, even by "a man" who isn't in the image — that IS doable. ${modelName} can introduce a person who emerges into the scene and speaks/narrates. Treat this as a creative prompt that needs the right phrasing, NOT as impossible.
 
 STEP 3 — WRITE YOUR RESPONSE:
-- ${modelName} CAN introduce new elements not in the image — but the prompt must describe HOW they appear (emerge, enter, materialize, etc.)
-- If the user references something not in the image, your suggestion MUST acknowledge what IS actually in the image and work from there
-- If they want existing text READ ALOUD, that's fine — include voice narration in the audio layer
+- ${modelName} CAN introduce new elements not in the image — people, creatures, objects can EMERGE, APPEAR, or ENTER the scene
+- If the user mentions a person not in the image (like "the man reads the text"), don't say it's impossible. Instead, help phrase it so the person APPEARS in the scene (e.g. "a man steps into frame by the campfire and begins speaking")
+- If they want existing text READ ALOUD, that's absolutely fine — include voice narration in the audio layer and describe the person speaking
 - If they want NEW text to appear visually on screen, warn that it will render as garbled
-- Your suggestion must ONLY reference things that are actually visible in the image OR clearly describe new elements emerging into the scene` : ""}
+- Your suggestion must work WITH the image — reference what's visible and describe how new elements enter the scene` : ""}
 
 Analyze their prompt and determine:
 1. Is the prompt clear enough for ${modelName} to understand what to generate?

@@ -578,18 +578,17 @@ FORMATTING RULES FOR THE OUTPUT PROMPT:
 - Always end with "AUDIO:" section describing music, sound effects, ambient sounds, and/or dialogue.
 
 AUDIO ENDING RULE — CRITICAL:
-- Any dialogue or narration in a SINGLE clip MUST be SHORT — no more than 1-2 brief sentences. Speech that's too long will get cut off mid-sentence.
-- Always end the AUDIO section with a closing beat: "...then fades to ambient silence" or "...trailing off into quiet background sounds." This prevents the awkward effect of a character appearing to still be talking when the video cuts.
-- If the prompt includes dialogue, have the character FINISH speaking well before the clip ends — leave the last 1-2 seconds for ambient sound or silence.
-- Never pack the AUDIO section with more speech than can naturally fit in ${genDuration} seconds.
-- If the user's original idea has a LONG voiceover or speech script, do NOT shorten or cut the content. Instead, split it into MULTIPLE separate clip prompts — one per sentence or idea — so the FULL speech is preserved across clips. Each clip's voiceover should be short enough to finish naturally within ${genDuration} seconds.
+- Keep voiceover/dialogue to 1-2 sentences per clip. A person speaks roughly 2-3 words per second, so ${genDuration} seconds fits about ${genDuration * 2}-${genDuration * 3} words of speech MAX.
+- Always end the AUDIO section with a closing beat: "...then fades to ambient silence" or "...trailing off into quiet background sounds." This prevents the character appearing to still be talking when the video cuts.
+- Leave the last 1-2 seconds for ambient sound or silence after speech ends.
 
-LONG CONTENT HANDLING: If the user's idea involves too much action OR too much speech/voiceover for a single ${genDuration}-second clip:
-- Write the FIRST clip prompt as the main output (with the first portion of speech/action)
-- Add a "⚠️ TIP:" note suggesting how many additional clips would be needed to complete the full idea
-- Suggest the user can use the "Split Into Separate Clips" button to generate the remaining clips
-- Do NOT cut, shorten, or summarize the user's speech/voiceover script — the goal is to deliver ALL of it across multiple clips
-- Do NOT mention "Extend from Frame" or any specific tool features
+LONG VOICEOVER HANDLING: If the user's original speech/voiceover script contains MORE words than can fit in ${genDuration} seconds (roughly ${genDuration * 2}-${genDuration * 3} words), THEN split it across multiple clips:
+- Write the FIRST clip prompt with the first portion of speech that fits naturally
+- Add a "⚠️ TIP:" suggesting how many clips are needed for the full script
+- Suggest using "Split Into Separate Clips" to generate the rest
+- Do NOT shorten or summarize — preserve all the user's speech across clips
+- Do NOT mention "Extend from Frame"
+BUT if the voiceover DOES fit in one clip (most 1-2 sentence voiceovers will), just include it normally — do NOT warn or split unnecessarily. A single sentence like "Turn boring content into scroll-stopping videos" easily fits in ${genDuration} seconds.
 
 ${image ? `CRITICAL: The prompt MUST describe how the uploaded image should ANIMATE into video. Describe motion, camera movement, and changes.
 

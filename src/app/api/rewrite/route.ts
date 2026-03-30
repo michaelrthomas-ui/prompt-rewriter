@@ -319,15 +319,19 @@ export async function POST(request: NextRequest) {
     }
 
     const imageContext = image
-      ? `\n\nIMPORTANT: The user has uploaded a reference image (shown above). Analyze this image carefully. The prompt they write is meant to describe how this image should be ANIMATED into a video using ${modelName}'s image-to-video feature.
+      ? `\n\nIMPORTANT: The user has uploaded a reference image (shown above). Analyze this image carefully. The prompt they write is meant to describe how this image should be ANIMATED into a video.
 
-Common mistakes users make with image-to-video prompts:
-- Writing text/dialogue they want the person to SAY (these models animate images, they don't add speech or text overlays)
-- Writing marketing copy or captions instead of motion/animation descriptions
+The uploaded image IS the starting frame. The prompt describes what HAPPENS NEXT — motion, camera movement, audio, and speech.
+
+These AI video models CAN do:
+- Speech, voiceover, narration, and dialogue with lip-sync
+- Native audio generation (music, sound effects, ambient sounds)
+- Animate the image with motion, camera movement, and effects
+
+Common mistakes to watch for:
+- Expecting new legible TEXT to appear visually on screen (will be garbled)
 - Describing a completely different scene that doesn't match the uploaded image
-- Forgetting to describe HOW the image should move/animate
-
-If you detect a mismatch between the image and the prompt (e.g. the prompt contains dialogue, marketing text, or doesn't describe animation), you MUST address this in your questions or output.`
+- Forgetting to describe HOW the image should move/animate`
       : "";
 
     if (action === "analyze") {
@@ -541,12 +545,11 @@ Return ONLY a JSON object: {"model":"grok" or "wan","duration":5 or 8 or 10,"rea
       const genImageContext = image
         ? `\n\nIMPORTANT: The user has uploaded a reference image (shown above). Analyze this image carefully. The prompt they write is meant to describe how this image should be ANIMATED into a video using ${genModelName}'s image-to-video feature.
 
-Common mistakes users make with image-to-video prompts:
-- Writing text/dialogue they want the person to SAY (these models animate images, they don't add speech or text overlays)
-- Writing marketing copy or captions instead of motion/animation descriptions
-- Describing a completely different scene that doesn't match the uploaded image
+The uploaded image IS the starting frame. The prompt describes what HAPPENS NEXT — motion, camera movement, audio, and speech.
 
-The uploaded image IS the starting frame. The prompt describes what HAPPENS NEXT — the motion, camera movement, animation, and audio.`
+These AI video models CAN do speech, voiceover, narration, and dialogue with lip-sync. Do NOT treat voiceover scripts as a mistake — they are valid and achievable.
+
+Watch for: expecting new legible TEXT to appear visually on screen (will be garbled), or describing a scene that contradicts the uploaded image.`
         : "";
       const promptIntro = hasPrompt
         ? `A user wants to create an image-to-video prompt for ${genModelName}. Their initial idea is:\n\n"${prompt}"${genImageContext}${qaContext}`

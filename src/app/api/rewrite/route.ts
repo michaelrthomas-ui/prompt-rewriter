@@ -786,13 +786,29 @@ DO NOT warn about:
 - Creative or fantastical scenarios — the user's creativity should be encouraged
 - Things not currently visible in the image — they can appear in the video
 
-IMPORTANT — TEXT AND VOICE DISTINCTION:
-- "reads the text" / "speaks the words" / "narrates" = VALID — AI models can do voice/speech with lip-sync
-- "text appears" / "write text" / "show words" / "display caption" = WARNING — new text renders as garbled
+CRITICAL — SPEECH vs TEXT DISTINCTION (get this right!):
+SPEECH/VOICEOVER = VALID AND GOOD. AI video models generate native audio with lip-sync. ALL of these are achievable:
+- "voiceover continues: 'We create high-converting video ads'" = SPEECH — this is VALID ✅
+- "the narrator says: 'More views. More clicks.'" = SPEECH — this is VALID ✅
+- "a voice announces the brand name" = SPEECH — this is VALID ✅
+- "character speaks: 'Visit our website today'" = SPEECH — this is VALID ✅
+- Any quoted text inside a voiceover/narration/speech context = AUDIO, not on-screen text
+
+ON-SCREEN TEXT = WARNING. Only warn if the prompt wants NEW VISIBLE TEXT to APPEAR on screen:
+- "text appears on screen saying 'Buy Now'" = VISUAL TEXT — this will be garbled ❌
+- "animated text flies in with the company name" = VISUAL TEXT — garbled ❌
+- "captions display at the bottom" = VISUAL TEXT — garbled ❌
+
+THE KEY TEST: Is the quoted text meant to be HEARD (speech/voiceover) or SEEN (displayed on screen)?
+- If HEARD → status "good" — AI models do speech/voiceover natively
+- If SEEN → status "warning" — AI models can't generate legible new text
+- Words like "voiceover," "says," "speaks," "narrates," "announces," "whispers," "shouts" = SPEECH = VALID
+- Words like "appears," "displays," "shows," "writes," "animates in" = VISUAL TEXT = WARNING
 
 STEP 3 — WRITE YOUR RESPONSE:
+- If the prompt describes speech, voiceover, narration, or dialogue — that's GOOD, mark as "good"
 - If the prompt describes new elements entering the scene, that's GOOD — mark it as status "good" with encouraging feedback
-- Only use status "warning" for things the AI model literally cannot do (garbled text, etc.)
+- Only use status "warning" for things the AI model literally cannot do (new visible text on screen, etc.)
 - If you're unsure whether something will work, default to "good" — let the user try it
 - Your suggestion (if needed) must work WITH the image — reference what's visible and describe how new elements enter the scene` : ""}
 
@@ -812,6 +828,7 @@ KNOWN AI VIDEO MODEL LIMITATIONS:
 THINGS AI VIDEO MODELS CAN DO:
 - Introduce NEW elements not in the original image (creatures, people, objects emerging/appearing)
 - Multi-beat action sequences and scene transitions
+- Voiceover, narration, and speech — including reading quoted text ALOUD as audio
 - Speaking, talking, lip-sync for dialogue AND singing
 - Short dialogue: "a whisper: 'We made it.'" or "shout: 'Stop!'"
 - All standard camera movements (pan, tilt, dolly, tracking, orbit, aerial, handheld)

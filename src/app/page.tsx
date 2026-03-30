@@ -96,7 +96,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [error, setError] = useState("");
-  const [step, setStep] = useState<"input" | "questions" | "result">("input");
+  const [step, setStep] = useState<"input" | "questions" | "generating" | "result">("input");
   const [readyToGenerate, setReadyToGenerate] = useState(false);
   const [aspect, setAspect] = useState<AspectRatio>("16:9");
   const [resultModel, setResultModel] = useState<Model>("grok");
@@ -445,6 +445,7 @@ export default function Home() {
   }
 
   async function handleGenerateWithPrompt(overridePrompt: string) {
+    setStep("generating");
     setLoading(true);
     setLoadingMessage("Crafting your optimized prompt...");
     setError("");
@@ -486,6 +487,7 @@ export default function Home() {
   }
 
   async function handleGenerate() {
+    setStep("generating");
     setLoading(true);
     setLoadingMessage("Crafting your optimized prompt...");
     setError("");
@@ -554,9 +556,9 @@ export default function Home() {
   }
 
   function handleUseSuggestion(suggestionPrompt: string) {
+    setOriginalUserPrompt(prompt.trim() || suggestionPrompt);
     setPrompt(suggestionPrompt);
     setShowTemplates(false);
-    // Run through generate so AI picks the best model/duration
     handleGenerateWithPrompt(suggestionPrompt);
   }
 
@@ -1344,6 +1346,29 @@ export default function Home() {
 
             <div ref={bottomRef} />
           </>
+        )}
+
+        {/* Step: Generating transition */}
+        {step === "generating" && (
+          <div className="flex flex-col items-center justify-center py-24">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-600/30 to-purple-600/30 flex items-center justify-center mb-6">
+              <svg className="w-10 h-10 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Creating your perfect prompt</h2>
+            <p className="text-slate-300 text-sm mb-1">Picking the best AI model for your idea...</p>
+            <p className="text-slate-400 text-xs">This usually takes a few seconds</p>
+            {error && (
+              <div className="mt-6 p-4 rounded-lg bg-red-900/50 border border-red-700 text-red-200 w-full max-w-md">
+                {error}
+                <button onClick={handleStartOver} className="block mt-2 text-sm text-red-300 hover:text-white cursor-pointer">
+                  Start Over
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Step 3: Result */}

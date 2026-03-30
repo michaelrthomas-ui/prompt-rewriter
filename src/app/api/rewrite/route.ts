@@ -56,6 +56,8 @@ AUDIO CAPABILITIES:
 - Lip-sync works for dialogue and singing when characters are visible.
 - You can add an "AUDIO:" section at the end of prompts for clarity.
 - Short dialogue works: "a quiet whisper: 'We made it.'" or "urgent shout: 'Stop him!'"
+- IMPORTANT: Keep dialogue to 1-2 SHORT sentences max. Longer speech gets cut off mid-sentence at the end of the clip.
+- Always end the AUDIO section with ambient sound or silence ("...fades to quiet ambient sounds") so the video doesn't cut while someone is still talking.
 - Background music: "with upbeat electronic music" or "dramatic orchestral score"
 - Sound effects: "footsteps on gravel," "engine revving," "glass shattering"
 
@@ -119,6 +121,8 @@ PROMPT STRUCTURE (for best results):
 AUDIO & DIALOGUE CAPABILITIES:
 - Wan 2.5 generates synchronized audio natively alongside video.
 - Lip-sync for dialogue: Specify dialog with speaker identification — "Character A: 'We have to keep moving.'"
+- IMPORTANT: Keep dialogue to 1-2 SHORT sentences max. Longer speech gets cut off mid-sentence at the end of the clip.
+- Always end audio descriptions with ambient sound or silence ("...fades to quiet") so the video doesn't cut while someone is still talking.
 - Ambient sounds: "soft rain tapping on windows with distant thunder"
 - When silence is preferred: explicitly mention "no dialog" in the prompt.
 - Music and sound effects can be described naturally in the prompt.
@@ -569,6 +573,12 @@ FORMATTING RULES FOR THE OUTPUT PROMPT:
 - Use positive descriptions only — negative prompts are completely IGNORED by ${genModelName}.
 - For multi-beat action, list actions in order. Use "camera switch" or "cut to" for transitions.
 - Always end with "AUDIO:" section describing music, sound effects, ambient sounds, and/or dialogue.
+
+AUDIO ENDING RULE — CRITICAL:
+- Any dialogue or narration MUST be SHORT — no more than 1-2 brief sentences for the entire clip. Speech that's too long will get cut off mid-sentence.
+- Always end the AUDIO section with a closing beat: "...then fades to ambient silence" or "...trailing off into quiet background sounds." This prevents the awkward effect of a character appearing to still be talking when the video cuts.
+- If the prompt includes dialogue, have the character FINISH speaking well before the clip ends — leave the last 1-2 seconds for ambient sound or silence.
+- Never pack the AUDIO section with more speech than can naturally fit in ${genDuration} seconds.
 
 COMPLEXITY CHECK: If the user's idea involves WAY too much action for a single ${genDuration}-second clip, add a note at the very end on a new line starting with "⚠️ TIP:" suggesting the action might be a lot for ${genDuration} seconds, and the user could split this into separate clip prompts for better results. Do NOT mention "Extend from Frame" or any specific tool features. But STILL write the single prompt above the tip — let the user decide if they want to split it.
 

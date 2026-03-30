@@ -80,7 +80,7 @@ WHAT CONFUSES GROK / WHAT TO AVOID:
 
 TECHNICAL SPECS (as of March 2026):
 - Output duration: up to 10 seconds per clip in-app (15 seconds via API)
-- Can chain clips using "Extend from Frame" — uses final frame as anchor for next clip
+- Clips can be chained together for longer sequences
 - Resolution: 720p max (480p also available)
 - Native synchronized audio on every generation
 - Aspect ratios: 1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3
@@ -578,12 +578,18 @@ FORMATTING RULES FOR THE OUTPUT PROMPT:
 - Always end with "AUDIO:" section describing music, sound effects, ambient sounds, and/or dialogue.
 
 AUDIO ENDING RULE — CRITICAL:
-- Any dialogue or narration MUST be SHORT — no more than 1-2 brief sentences for the entire clip. Speech that's too long will get cut off mid-sentence.
+- Any dialogue or narration in a SINGLE clip MUST be SHORT — no more than 1-2 brief sentences. Speech that's too long will get cut off mid-sentence.
 - Always end the AUDIO section with a closing beat: "...then fades to ambient silence" or "...trailing off into quiet background sounds." This prevents the awkward effect of a character appearing to still be talking when the video cuts.
 - If the prompt includes dialogue, have the character FINISH speaking well before the clip ends — leave the last 1-2 seconds for ambient sound or silence.
 - Never pack the AUDIO section with more speech than can naturally fit in ${genDuration} seconds.
+- If the user's original idea has a LONG voiceover or speech script, do NOT shorten or cut the content. Instead, split it into MULTIPLE separate clip prompts — one per sentence or idea — so the FULL speech is preserved across clips. Each clip's voiceover should be short enough to finish naturally within ${genDuration} seconds.
 
-COMPLEXITY CHECK: If the user's idea involves WAY too much action for a single ${genDuration}-second clip, add a note at the very end on a new line starting with "⚠️ TIP:" suggesting the action might be a lot for ${genDuration} seconds, and the user could split this into separate clip prompts for better results. Do NOT mention "Extend from Frame" or any specific tool features. But STILL write the single prompt above the tip — let the user decide if they want to split it.
+LONG CONTENT HANDLING: If the user's idea involves too much action OR too much speech/voiceover for a single ${genDuration}-second clip:
+- Write the FIRST clip prompt as the main output (with the first portion of speech/action)
+- Add a "⚠️ TIP:" note suggesting how many additional clips would be needed to complete the full idea
+- Suggest the user can use the "Split Into Separate Clips" button to generate the remaining clips
+- Do NOT cut, shorten, or summarize the user's speech/voiceover script — the goal is to deliver ALL of it across multiple clips
+- Do NOT mention "Extend from Frame" or any specific tool features
 
 ${image ? `CRITICAL: The prompt MUST describe how the uploaded image should ANIMATE into video. Describe motion, camera movement, and changes.
 
@@ -602,11 +608,12 @@ RULES FOR THE JSON:
 - "warning" — ONLY include this field if the user's original idea asked for something ${genModelName} can't do or struggles with. Examples of things that need a warning:
   - Requesting legible text to appear, be written, or be read in the video (AI video models render text as garbled/illegible)
   - Requesting specific words to appear on screen as text overlays or captions
-  - Requesting multiple scene changes or transitions (these models make a single continuous clip)
   - Requesting detailed hand/finger close-ups (often renders with distorted fingers)
   - Requesting large crowds with individual detail (faces blur and distort)
   - Requesting major shape-shifting or transformation effects
-  If the user's prompt IS achievable, do NOT include the warning field at all. The warning should be a short, friendly 1-2 sentence explanation of what can't be done and what you changed it to instead.`;
+  IMPORTANT: If the original voiceover/speech was too long for one clip, do NOT warn that you "shortened" it. Instead, explain that the full speech has been split across multiple clips and they can use "Split Into Separate Clips" to get the rest.
+  Do NOT mention "Extend from Frame" in any warning.
+  If the user's prompt IS achievable, do NOT include the warning field at all. The warning should be a short, friendly 1-2 sentence explanation.`;
 
       const text = await callKieAI(buildContent(textPrompt, image));
 

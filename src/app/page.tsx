@@ -106,6 +106,7 @@ export default function Home() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [imageSuggestions, setImageSuggestions] = useState<{ category: string; prompt: string }[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [suggestError, setSuggestError] = useState("");
   const lastSuggestInputRef = useRef<{ image: string; prompt: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [promptCheck, setPromptCheck] = useState<{ status: "good" | "warning"; message: string; suggestion?: string | null } | null>(null);
@@ -206,6 +207,7 @@ export default function Home() {
     setLoadingSuggestions(true);
     setShowTemplates(true);
     setImageSuggestions([]);
+    setSuggestError("");
     try {
       const res = await fetch("/api/rewrite", {
         method: "POST",
@@ -223,9 +225,13 @@ export default function Home() {
         const data = await res.json();
         setImageSuggestions(data.suggestions || []);
         lastSuggestInputRef.current = currentInput;
+      } else {
+        let errorMsg = "The AI service is temporarily unavailable.";
+        try { const data = await res.json(); errorMsg = data.error || errorMsg; } catch { /* non-JSON */ }
+        setSuggestError(errorMsg);
       }
     } catch {
-      // Silently fail — suggestions are a nice-to-have
+      setSuggestError("Could not reach the AI service. Please check your connection and try again.");
     } finally {
       setLoadingSuggestions(false);
     }
@@ -252,9 +258,13 @@ export default function Home() {
       if (res.ok) {
         const data = await res.json();
         setPromptCheck(data);
+      } else {
+        let errorMsg = "The AI service is temporarily unavailable.";
+        try { const data = await res.json(); errorMsg = data.error || errorMsg; } catch { /* non-JSON */ }
+        setPromptCheck({ status: "warning", message: `${errorMsg} Please try again in a moment.` });
       }
     } catch {
-      // Silently fail
+      setPromptCheck({ status: "warning", message: "Could not reach the AI service. Please check your connection and try again." });
     } finally {
       setCheckingPrompt(false);
     }
@@ -317,8 +327,9 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to analyze prompt");
+        let errorMsg = "Failed to analyze prompt";
+        try { const data = await res.json(); errorMsg = data.error || errorMsg; } catch { /* non-JSON */ }
+        throw new Error(errorMsg);
       }
 
       const data = await res.json();
@@ -389,8 +400,9 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to get more questions");
+        let errorMsg = "Failed to get more questions";
+        try { const data = await res.json(); errorMsg = data.error || errorMsg; } catch { /* non-JSON */ }
+        throw new Error(errorMsg);
       }
 
       const data = await res.json();
@@ -424,12 +436,12 @@ export default function Home() {
 
   async function addToHistory(optimizedPrompt: string, sum: string | null, warn: string | null, histModel?: Model, histDuration?: number) {
     if (!user) return;
-    const { data } = await supabase
+    const { data, error: insertError } = await supabase
       .from("prompt_history")
       .insert({
         user_id: user.id,
         model: histModel || resultModel,
-        original_prompt: originalUserPrompt || prompt,
+        original_prompt: originalUserPrompt || prompt || "(no prompt)",
         optimized_prompt: optimizedPrompt,
         summary: sum,
         warning: warn,
@@ -439,6 +451,9 @@ export default function Home() {
       .select()
       .single();
 
+    if (insertError) {
+      console.error("Failed to save to history:", insertError.message);
+    }
     if (data) {
       setHistory((prev) => [rowToEntry(data as HistoryRow), ...prev].slice(0, 50));
     }
@@ -464,8 +479,12 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to generate prompt");
+        let errorMsg = "Failed to generate prompt";
+        try {
+          const data = await res.json();
+          errorMsg = data.error || errorMsg;
+        } catch { /* non-JSON response */ }
+        throw new Error(errorMsg);
       }
 
       const data = await res.json();
@@ -509,8 +528,12 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to generate prompt");
+        let errorMsg = "Failed to generate prompt";
+        try {
+          const data = await res.json();
+          errorMsg = data.error || errorMsg;
+        } catch { /* non-JSON response */ }
+        throw new Error(errorMsg);
       }
 
       const data = await res.json();
@@ -698,11 +721,18 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to split prompt");
+        let errorMsg = "Failed to split prompt";
+        try {
+          const data = await res.json();
+          errorMsg = data.error || errorMsg;
+        } catch { /* non-JSON response */ }
+        throw new Error(errorMsg);
       }
 
       const data = await res.json();
+      if (!data.rewritten || !data.rewritten.trim()) {
+        throw new Error("No clip prompts were generated. Please try again.");
+      }
       setRewritten(data.rewritten);
       setSummary(null);
       setPromptIssueWarning(null);
@@ -960,6 +990,14 @@ export default function Home() {
                         </button>
                       </div>
                     )}
+                    {promptCheck.message.includes("try again") && (
+                      <button
+                        onClick={() => { setPromptCheck(null); checkPromptFeasibility(); }}
+                        className="mt-2 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-600 text-white hover:bg-amber-500 transition-colors cursor-pointer"
+                      >
+                        Try Again
+                      </button>
+                    )}
                   </div>
                 )}
                 {contentRestriction && (
@@ -1104,8 +1142,22 @@ export default function Home() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-slate-500 text-sm">
-                      {loadingSuggestions ? "Analyzing your image..." : "No suggestions available"}
+                    <div className="text-center py-8 text-sm">
+                      {loadingSuggestions ? (
+                        <p className="text-slate-400">Analyzing your image...</p>
+                      ) : suggestError ? (
+                        <div className="p-4 rounded-lg bg-red-900/40 border border-red-700/50">
+                          <p className="text-red-200 mb-3">{suggestError}</p>
+                          <button
+                            onClick={fetchImageSuggestions}
+                            className="px-5 py-2 rounded-lg font-semibold bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer transition-all"
+                          >
+                            Try Again
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-slate-500">No suggestions available</p>
+                      )}
                     </div>
                   )}
                   {imageSuggestions.length > 0 && (
@@ -1136,8 +1188,9 @@ export default function Home() {
                           }),
                         }).then(async (res) => {
                           if (!res.ok) {
-                            const data = await res.json();
-                            throw new Error(data.error || "Failed to analyze");
+                            let errorMsg = "Failed to analyze";
+                            try { const data = await res.json(); errorMsg = data.error || errorMsg; } catch { /* non-JSON */ }
+                            throw new Error(errorMsg);
                           }
                           const data = await res.json();
                           setPendingQuestions(
@@ -1351,22 +1404,44 @@ export default function Home() {
         {/* Step: Generating transition */}
         {step === "generating" && (
           <div className="flex flex-col items-center justify-center py-24">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-600/30 to-purple-600/30 flex items-center justify-center mb-6">
-              <svg className="w-10 h-10 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-bold text-white mb-2">Creating your perfect prompt</h2>
-            <p className="text-slate-300 text-sm mb-1">Picking the best AI model for your idea...</p>
-            <p className="text-slate-400 text-xs">This usually takes a few seconds</p>
-            {error && (
-              <div className="mt-6 p-4 rounded-lg bg-red-900/50 border border-red-700 text-red-200 w-full max-w-md">
-                {error}
-                <button onClick={handleStartOver} className="block mt-2 text-sm text-red-300 hover:text-white cursor-pointer">
-                  Start Over
-                </button>
-              </div>
+            {!error ? (
+              <>
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-600/30 to-purple-600/30 flex items-center justify-center mb-6">
+                  <svg className="w-10 h-10 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-bold text-white mb-2">Creating your perfect prompt</h2>
+                <p className="text-slate-300 text-sm mb-1">Picking the best AI model for your idea...</p>
+                <p className="text-slate-400 text-xs">This usually takes a few seconds</p>
+              </>
+            ) : (
+              <>
+                <div className="w-20 h-20 rounded-full bg-red-900/30 flex items-center justify-center mb-6">
+                  <svg className="w-10 h-10 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-bold text-white mb-3">Something went wrong</h2>
+                <div className="p-4 rounded-lg bg-red-900/50 border border-red-700 text-red-200 w-full max-w-md text-center mb-4">
+                  {error}
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setError(""); handleGenerate(); }}
+                    className="px-6 py-2.5 rounded-lg font-semibold text-sm bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer transition-all"
+                  >
+                    Try Again
+                  </button>
+                  <button
+                    onClick={handleStartOver}
+                    className="px-6 py-2.5 rounded-lg font-semibold text-sm bg-slate-700 text-white hover:bg-slate-600 cursor-pointer transition-all"
+                  >
+                    Start Over
+                  </button>
+                </div>
+              </>
             )}
           </div>
         )}

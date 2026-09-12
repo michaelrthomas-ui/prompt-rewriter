@@ -57,6 +57,7 @@ AUDIO CAPABILITIES:
 - You can add an "AUDIO:" section at the end of prompts for clarity.
 - Short dialogue works: "a quiet whisper: 'We made it.'" or "urgent shout: 'Stop him!'"
 - IMPORTANT: Keep dialogue to 1-2 SHORT sentences max. Longer speech gets cut off mid-sentence at the end of the clip.
+- NEVER repeat spoken words outside the dialogue quote — this confuses speech synthesis and causes mispronunciation. Write visual actions first, then put dialogue as one clean uninterrupted quote.
 - Always end the AUDIO section with ambient sound or silence ("...fades to quiet ambient sounds") so the video doesn't cut while someone is still talking.
 - Background music: "with upbeat electronic music" or "dramatic orchestral score"
 - Sound effects: "footsteps on gravel," "engine revving," "glass shattering"
@@ -122,6 +123,7 @@ AUDIO & DIALOGUE CAPABILITIES:
 - Wan 2.5 generates synchronized audio natively alongside video.
 - Lip-sync for dialogue: Specify dialog with speaker identification — "Character A: 'We have to keep moving.'"
 - IMPORTANT: Keep dialogue to 1-2 SHORT sentences max. Longer speech gets cut off mid-sentence at the end of the clip.
+- NEVER repeat spoken words outside the dialogue quote — this confuses speech synthesis and causes mispronunciation. Write visual actions first, then put dialogue as one clean uninterrupted quote.
 - Always end audio descriptions with ambient sound or silence ("...fades to quiet") so the video doesn't cut while someone is still talking.
 - Ambient sounds: "soft rain tapping on windows with distant thunder"
 - When silence is preferred: explicitly mention "no dialog" in the prompt.
@@ -191,48 +193,145 @@ interface MessageContent {
   };
 }
 
-async function callKieAI(content: string | MessageContent[], retries = 2): Promise<string> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const res = await fetch("https://api.kie.ai/claude/v1/messages", {
-      method: "POST",
+const FETCH_TIMEOUT_MS = 30000; // 30 seconds per request
+
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Provider configs — tries Anthropic direct first, then KIE.AI as fallback
+interface AIProvider {
+  name: string;
+  url: string;
+  headers: Record<string, string>;
+  model: string;
+  parseResponse: (data: Record<string, unknown>) => string;
+  isError?: (data: Record<string, unknown>) => string | null;
+}
+
+function getProviders(): AIProvider[] {
+  const providers: AIProvider[] = [];
+
+  // Primary: Anthropic direct API
+  if (process.env.ANTHROPIC_API_KEY) {
+    providers.push({
+      name: "Anthropic",
+      url: "https://api.anthropic.com/v1/messages",
+      headers: {
+        "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "content-type": "application/json",
+        "anthropic-version": "2023-06-01",
+      },
+      model: "claude-sonnet-5",
+      parseResponse: (data) => {
+        const content = data.content as Array<{ type: string; text?: string }> | undefined;
+        return content?.[0]?.text || "";
+      },
+    });
+  }
+
+  // Fallback: KIE.AI proxy
+  if (process.env.KIE_API_KEY) {
+    providers.push({
+      name: "KIE.AI",
+      url: "https://api.kie.ai/claude/v1/messages",
       headers: {
         "Authorization": `Bearer ${process.env.KIE_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5",
-        max_tokens: 4096,
-        stream: false,
-        messages: [{ role: "user", content }],
-      }),
+      model: "claude-sonnet-4-5",
+      parseResponse: (data) => {
+        const content = data.content as Array<{ type: string; text?: string }> | undefined;
+        return content?.[0]?.text || "";
+      },
+      isError: (data) => {
+        if (data.code && data.code !== 200) {
+          return (data.msg as string) || `API error code ${data.code}`;
+        }
+        return null;
+      },
     });
-
-    if (!res.ok) {
-      let errorMsg = `API returned ${res.status}`;
-      try {
-        const errorData = await res.json();
-        errorMsg = errorData.msg || errorData.error?.message || errorMsg;
-      } catch { /* ignore parse errors */ }
-      if (attempt < retries) {
-        await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
-        continue;
-      }
-      throw new Error(errorMsg);
-    }
-
-    const data = await res.json();
-
-    if (data.code && data.code !== 200) {
-      if (attempt < retries && data.code === 500) {
-        await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
-        continue;
-      }
-      throw new Error(data.msg || `API error code ${data.code}`);
-    }
-
-    return data.content?.[0]?.text || "";
   }
-  throw new Error("API request failed after retries");
+
+  return providers;
+}
+
+async function callAI(content: string | MessageContent[], retries = 1): Promise<string> {
+  const providers = getProviders();
+  if (providers.length === 0) {
+    throw new Error("No AI API keys configured");
+  }
+
+  let lastError = "";
+
+  for (const provider of providers) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const res = await fetchWithTimeout(provider.url, {
+          method: "POST",
+          headers: provider.headers,
+          body: JSON.stringify({
+            model: provider.model,
+            max_tokens: 8192,
+            stream: false,
+            thinking: { type: "disabled" },
+            messages: [{ role: "user", content }],
+          }),
+        }, FETCH_TIMEOUT_MS);
+
+        if (!res.ok) {
+          let errorMsg = `${provider.name} returned ${res.status}`;
+          try {
+            const errorData = await res.json();
+            errorMsg = errorData.error?.message || (errorData as Record<string, unknown>).msg as string || errorMsg;
+          } catch { /* ignore parse errors */ }
+          lastError = errorMsg;
+          if (attempt < retries) {
+            await new Promise(r => setTimeout(r, 1500));
+            continue;
+          }
+          break;
+        }
+
+        const data = await res.json();
+
+        // Check for provider-specific error codes (e.g. KIE.AI wraps errors in data.code)
+        if (provider.isError) {
+          const errMsg = provider.isError(data);
+          if (errMsg) {
+            lastError = errMsg;
+            if (attempt < retries) {
+              await new Promise(r => setTimeout(r, 1500));
+              continue;
+            }
+            break;
+          }
+        }
+
+        return provider.parseResponse(data);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          lastError = "Request timed out";
+        } else {
+          lastError = err instanceof Error ? err.message : "Request failed";
+        }
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, 1500));
+          continue;
+        }
+        break;
+      }
+    }
+    console.log(`${provider.name} (${provider.model}) failed: ${lastError} — trying next provider...`);
+  }
+
+  throw new Error(lastError || "API request failed after all retries");
 }
 
 function buildContent(textPrompt: string, imageDataUrl?: string): string | MessageContent[] {
@@ -268,6 +367,19 @@ export async function POST(request: NextRequest) {
     }
 
     const { model: rawModel, action, prompt, questions, image, duration, aspect } = await request.json();
+
+    // Log usage (fire-and-forget — don't block the response)
+    Promise.resolve(
+      supabase.from("usage_logs").insert({
+        user_id: user.id,
+        user_email: user.email,
+        action,
+        prompt: prompt ? prompt.slice(0, 500) : null,
+        has_image: !!image,
+        model: rawModel,
+        aspect,
+      })
+    ).catch(() => { /* ignore logging errors */ });
 
     if (!prompt && !image) {
       return Response.json({ error: "Please provide a prompt or upload an image" }, { status: 400 });
@@ -439,7 +551,7 @@ Return ONLY a JSON object with this exact format (no markdown, no code blocks):
 
 Example: {"questions":["Should the camera slowly push in toward the subject?","Do you want a cinematic film look?","Should the lighting feel warm and golden?"],"readyToGenerate":false}`;
 
-      const text = await callKieAI(buildContent(textPrompt, image));
+      const text = await callAI(buildContent(textPrompt, image));
 
       let parsed: { questions: string[]; readyToGenerate: boolean };
       try {
@@ -518,7 +630,7 @@ ${questions && questions.length > 0 ? `\nQ&A CONTEXT:\n${questions.map((q: { que
 
 Return ONLY a JSON object: {"model":"grok" or "wan","duration":5 or 8 or 10,"reason":"one sentence why"}`;
 
-        const pickResult = await callKieAI(image ? buildContent(pickPrompt, image) : pickPrompt);
+        const pickResult = await callAI(image ? buildContent(pickPrompt, image) : pickPrompt);
         try {
           const pickMatch = pickResult.match(/\{[\s\S]*\}/);
           const pickParsed = pickMatch ? JSON.parse(pickMatch[0]) : JSON.parse(pickResult);
@@ -577,6 +689,14 @@ FORMATTING RULES FOR THE OUTPUT PROMPT:
 - For multi-beat action, list actions in order. Use "camera switch" or "cut to" for transitions.
 - Always end with "AUDIO:" section describing music, sound effects, ambient sounds, and/or dialogue.
 
+DIALOGUE/SPEECH FORMATTING — CRITICAL:
+- Put ALL spoken dialogue as ONE clean, uninterrupted quote. NEVER break dialogue apart or repeat spoken words outside the quote.
+- BAD: "he says 'Hey check out this product!' — as he says 'product,' his hand sweeps up" (repeats "product" — confuses speech synthesis)
+- GOOD: "his right hand sweeps upward in a confident gesture. He speaks to camera: 'Hey check out this cool product!'" (dialogue is one clean block)
+- Describe the visual actions FIRST (gestures, expressions, movement), THEN put the complete dialogue quote.
+- If timing matters (gesture syncs with a word), describe it BEFORE the quote: "his hand rises mid-sentence" — but NEVER re-quote the specific word outside the dialogue.
+- Keep dialogue in the AUDIO: section whenever possible, separate from visual descriptions above it.
+
 AUDIO ENDING RULE — CRITICAL:
 - Keep voiceover/dialogue to 1-2 sentences per clip. A person speaks roughly 2-3 words per second, so ${genDuration} seconds fits about ${genDuration * 2}-${genDuration * 3} words of speech MAX.
 - Always end the AUDIO section with a closing beat: "...then fades to ambient silence" or "...trailing off into quiet background sounds." This prevents the character appearing to still be talking when the video cuts.
@@ -614,7 +734,7 @@ RULES FOR THE JSON:
   Do NOT mention "Extend from Frame" in any warning.
   If the user's prompt IS achievable, do NOT include the warning field at all. The warning should be a short, friendly 1-2 sentence explanation.`;
 
-      const text = await callKieAI(buildContent(textPrompt, image));
+      const text = await callAI(buildContent(textPrompt, image));
 
       // Try to parse as JSON for structured response
       try {
@@ -633,27 +753,36 @@ RULES FOR THE JSON:
       }
 
     } else if (action === "split") {
-      const clipDuration = duration || (model === "wan" ? 5 : 8);
+      if (!prompt || !prompt.trim()) {
+        return Response.json({ error: "No prompt to split. Please generate a prompt first." }, { status: 400 });
+      }
+      const splitDuration = duration || (model === "wan" ? 5 : 8);
       const textPrompt = `${expertise}
 
 You previously wrote this single prompt for a ${modelName} image-to-video generation:
 
 "${prompt}"
+${qaContext}
 
-The user wants to split this into MULTIPLE shorter clips because the action is too complex for a single ${clipDuration}-second clip.
+The user wants to split this into MULTIPLE shorter clips because the action is too complex for a single ${splitDuration}-second clip, OR the voiceover/dialogue is too long for one clip.
 
-Split the prompt into 2-3 separate clip prompts. Each clip should:
+Split the prompt into 2-4 separate clip prompts. Each clip should:
 - Be labeled "Clip 1:", "Clip 2:", etc. on its own line
-- Contain ONE primary action that fits naturally in ${clipDuration} seconds
+- Contain ONE primary action that fits naturally in ${splitDuration} seconds
 - Be 50-120 words
 - Pick up where the previous clip left off (so they can be generated in sequence)
 - Front-load the key action in the first 20 words
 - Include camera, lighting, and audio descriptions
 - Use positive descriptions only (never "no X" or "without X")
+- If there's voiceover/dialogue, split it naturally across clips so each clip's speech fits in ${splitDuration} seconds (roughly ${splitDuration * 2}-${splitDuration * 3} words of speech per clip)
+- Each clip should end its AUDIO section with a fade or ambient beat to avoid cutoff
 
 Return ONLY the clip prompts with their labels. No explanations or commentary.`;
 
-      const rewritten = await callKieAI(textPrompt);
+      const rewritten = await callAI(textPrompt);
+      if (!rewritten || !rewritten.trim()) {
+        return Response.json({ error: "Failed to generate clip prompts. Please try again." }, { status: 500 });
+      }
       return Response.json({ rewritten });
 
     } else if (action === "surprise") {
@@ -752,7 +881,7 @@ Return ONLY a JSON object (no markdown):
 {"prompt":"the prompt text","category":"the category you picked"}`;
       }
 
-      const text = await callKieAI(buildContent(textPrompt, image));
+      const text = await callAI(buildContent(textPrompt, image));
       try {
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);
@@ -852,7 +981,7 @@ If there are issues: {"status":"warning","message":"Short explanation of the iss
 
 Keep the message to 1-2 sentences. Be helpful, not discouraging.`;
 
-      const text = await callKieAI(buildContent(textPrompt, image));
+      const text = await callAI(buildContent(textPrompt, image));
       try {
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);
@@ -908,7 +1037,7 @@ PROMPT RULES:
 Return ONLY a JSON array (no markdown, no code blocks):
 [{"category":"action title here","prompt":"full prompt here"}]`;
 
-      const text = await callKieAI(buildContent(textPrompt, image));
+      const text = await callAI(buildContent(textPrompt, image));
       try {
         const jsonMatch = text.match(/\[[\s\S]*\]/);
         const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);
